@@ -1,16 +1,17 @@
 import Express from "express";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
+import cors from 'cors';
+
 dotenv.config();
 
 const app = Express();
 const port = process.env.port || 3001;
-let blocks = [];
+const uri = process.env.ATLAS_URI;
 
 app.use(Express.json());
 app.use(Express.urlencoded({ extended: true }));
-
-const uri = process.env.ATLAS_URI;
+app.use(cors());
 
 try {
 	mongoose.connect(uri, { useNewUrlParser: true, useCreateIndex: true, useUnifiedTopology: true });

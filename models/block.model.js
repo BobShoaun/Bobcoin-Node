@@ -12,6 +12,10 @@ const blockSchema = new Schema({
     type: String,
     required: true,
   },
+  miner: {
+    type: String,
+    required: true,
+  },
   nonce: {
     type: Number,
     required: true,
