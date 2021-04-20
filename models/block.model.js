@@ -8,7 +8,7 @@ const blockSchema = new Schema({
     required: true,
     unique: true,
   },
-  previousBlockHash: {
+  previousHash: {
     type: String,
     required: true,
   },
@@ -19,6 +19,10 @@ const blockSchema = new Schema({
   nonce: {
     type: Number,
     required: true,
+  },
+  timestamp: {
+    type: Date,
+    required: true
   }
 
 }, {
