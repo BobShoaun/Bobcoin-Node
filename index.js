@@ -5,6 +5,10 @@ import dotenv from "dotenv";
 import cors from "cors";
 import { Server } from "socket.io";
 
+import blocksRouter from "./routes/blocks.js";
+import Block from "./models/block.model.js";
+import Transaction from "./models/transaction.models.js";
+
 dotenv.config();
 
 const app = Express();
@@ -22,29 +26,16 @@ app.use(Express.json());
 app.use(Express.urlencoded({ extended: true }));
 app.use(cors());
 
-io.on("connection", socket => {
-	console.log("a user connected");
-	socket.on("disconnect", () => {
-		console.log("user disconnected");
-	});
-	socket.on("add block", block => {
-    socket.broadcast.emit('incoming block', block);
-		console.log("added: ", block);
-	});
-});
-
 try {
 	mongoose.connect(uri, { useNewUrlParser: true, useCreateIndex: true, useUnifiedTopology: true });
 } catch {
 	console.error("could not connect");
 }
+
 const connection = mongoose.connection;
 connection.once("open", () => {
 	console.log("MongoDB database connection established");
 });
-
-import blocksRouter from "./routes/blocks.js";
-// import transactionsRouter from './routes/transactions';
 
 app.use("/blocks", blocksRouter);
 // app.use('/transactions', transactionsRouter);
@@ -55,4 +46,23 @@ app.get("/", (req, res) => {
 
 server.listen(port, () => {
 	console.log("Server started on port: ", port);
+});
+
+io.on("connection", socket => {
+	console.log("a user connected");
+	socket.on("disconnect", () => {
+		console.log("user disconnected");
+	});
+	socket.on("new block", async block => {
+		socket.broadcast.emit("add block", block);
+		const newBlock = new Block(block);
+		await newBlock.save();
+		console.log("added block to db: ", newBlock);
+	});
+	socket.on("new transaction", async transaction => {
+		socket.broadcast.emit("add transaction", transaction);
+		const newTx = new Transaction(transaction);
+		await newTx.save();
+		console.log("added tx: ", newTx);
+	});
 });

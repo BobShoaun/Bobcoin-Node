@@ -13,13 +13,46 @@ const transactionSchema = new Schema(
 			type: String,
 			required: true,
 		},
-		sender: {
-			type: String,
-			required: true,
-		},
-		recipient: { type: String, required: true },
-    amount: {type: Number, required: true },
-    fee: {type: Number, required: true}
+		inputs: [
+			{
+				address: {
+					type: String,
+					required: true,
+				},
+				amount: {
+					type: Number,
+					required: true,
+				},
+				timestamp: {
+					type: Date,
+					required: true,
+				},
+				hash: {
+					type: String,
+					required: true,
+				},
+			},
+		],
+		outputs: [
+			{
+				address: {
+					type: String,
+					required: true,
+				},
+				amount: {
+					type: Number,
+					required: true,
+				},
+				timestamp: {
+					type: Date,
+					required: true,
+				},
+				hash: {
+					type: String,
+					required: true,
+				},
+			},
+		],
 	},
 	{
 		timestamps: true,
@@ -27,4 +60,4 @@ const transactionSchema = new Schema(
 );
 
 const Transaction = mongoose.model("Transaction", transactionSchema);
-module.exports = Transaction;
+export default Transaction;
