@@ -48,8 +48,7 @@ server.listen(port, () => {
 	console.log("Server started on port: ", port);
 });
 
-io.on("connection", socket => {
-	console.log("a user connected");
+io.on("connection", async socket => {
 	socket.on("disconnect", () => {
 		console.log("user disconnected");
 	});
@@ -65,4 +64,12 @@ io.on("connection", socket => {
 		await newTx.save();
 		console.log("added tx: ", newTx);
 	});
+
+	console.log("a user connected");
+
+	const blocks = await Block.find();
+	socket.emit("all blocks", blocks);
+
+	const transactions = await Transaction.find();
+	socket.emit("all transactions", transactions);
 });
