@@ -2,32 +2,36 @@ import mongoose from "mongoose";
 
 const Schema = mongoose.Schema;
 
-const transactionSchema = new Schema(
+export const transactionSchema = new Schema(
 	{
 		hash: {
 			type: String,
 			required: true,
 			unique: true,
 		},
-		signature: {
-			type: String,
+		timestamp: {
+			type: Date,
+			required: true,
+		},
+		version: {
+			type: Number,
 			required: true,
 		},
 		inputs: [
 			{
-				address: {
+				txHash: {
 					type: String,
 					required: true,
 				},
-				amount: {
+				outIndex: {
 					type: Number,
 					required: true,
 				},
-				timestamp: {
-					type: Date,
+				publicKey: {
+					type: String,
 					required: true,
 				},
-				hash: {
+				signature: {
 					type: String,
 					required: true,
 				},
@@ -41,14 +45,6 @@ const transactionSchema = new Schema(
 				},
 				amount: {
 					type: Number,
-					required: true,
-				},
-				timestamp: {
-					type: Date,
-					required: true,
-				},
-				hash: {
-					type: String,
 					required: true,
 				},
 			},

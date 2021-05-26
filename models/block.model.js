@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { transactionSchema } from "./transaction.model.js";
 
 const Schema = mongoose.Schema;
 
@@ -11,6 +12,9 @@ const blockSchema = new Schema(
 		},
 		previousHash: {
 			type: String,
+		},
+		difficulty: {
+			type: Number,
 			required: true,
 		},
 		height: {
@@ -25,6 +29,11 @@ const blockSchema = new Schema(
 			type: Date,
 			required: true,
 		},
+		version: {
+			type: Number,
+			required: true,
+		},
+		transactions: [{ type: transactionSchema }],
 	},
 	{
 		timestamps: true,

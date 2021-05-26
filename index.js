@@ -7,7 +7,7 @@ import { Server } from "socket.io";
 
 import blocksRouter from "./routes/blocks.js";
 import Block from "./models/block.model.js";
-import Transaction from "./models/transaction.models.js";
+import Transaction from "./models/transaction.model.js";
 
 dotenv.config();
 
@@ -28,7 +28,7 @@ app.use(cors());
 
 try {
 	mongoose.connect(uri, { useNewUrlParser: true, useCreateIndex: true, useUnifiedTopology: true });
-} catch {
+} catch (e) {
 	console.error("could not connect");
 }
 
@@ -69,7 +69,8 @@ io.on("connection", async socket => {
 
 	const blocks = await Block.find();
 	socket.emit("all blocks", blocks);
+	console.log(blocks);
 
-	const transactions = await Transaction.find();
-	socket.emit("all transactions", transactions);
+	// const transactions = await Transaction.find();
+	// socket.emit("all transactions", transactions);
 });
