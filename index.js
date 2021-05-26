@@ -8,6 +8,7 @@ import { Server } from "socket.io";
 import blocksRouter from "./routes/blocks.js";
 import Block from "./models/block.model.js";
 import Transaction from "./models/transaction.model.js";
+import params from "./params.js";
 
 dotenv.config();
 
@@ -68,8 +69,7 @@ io.on("connection", async socket => {
 	console.log("a user connected");
 
 	const blocks = await Block.find();
-	socket.emit("all blocks", blocks);
-	console.log(blocks);
+	socket.emit("sync", { blocks, params });
 
 	// const transactions = await Transaction.find();
 	// socket.emit("all transactions", transactions);

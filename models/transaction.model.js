@@ -10,7 +10,7 @@ export const transactionSchema = new Schema(
 			unique: true,
 		},
 		timestamp: {
-			type: Date,
+			type: Number,
 			required: true,
 		},
 		version: {

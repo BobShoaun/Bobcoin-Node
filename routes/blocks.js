@@ -5,7 +5,7 @@ import Transaction from "../models/transaction.model.js";
 import BlockCrypto from "blockcrypto";
 import params from "../params.js";
 
-const { mineGenesisBlock, createCoinbaseTransaction } = BlockCrypto;
+const { mineGenesisBlock, createCoinbaseTransaction, calculateBlockHash } = BlockCrypto;
 
 const router = Express.Router();
 
@@ -39,7 +39,7 @@ router.route("/mine-genesis").post(async (req, res) => {
 		const coinbaseDB = new Transaction(coinbase);
 		await genesisDB.save();
 		await coinbaseDB.save();
-		console.log("genesis block mined: ", genesis);
+		console.log("genesis block mined: ", genesis, genesisDB);
 		res.json(genesis);
 	} catch (error) {
 		res.status(400).json(`Error: ${error}`);

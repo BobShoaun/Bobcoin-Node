@@ -6,7 +6,7 @@ const params = {
 	version: 1,
 	addressPre: "06",
 	checksumLen: 4,
-	initBlkReward: 50, // in coins
+	initBlkReward: 5000000000, // in coins
 	blkRewardHalflife: 10, // in block height
 	initBlockDiff: 1,
 	initHashTarg: "000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",

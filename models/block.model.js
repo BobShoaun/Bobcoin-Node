@@ -26,7 +26,7 @@ const blockSchema = new Schema(
 			required: true,
 		},
 		timestamp: {
-			type: Date,
+			type: Number,
 			required: true,
 		},
 		version: {
