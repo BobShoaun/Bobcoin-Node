@@ -1,8 +1,8 @@
 import { Server } from "socket.io";
 
-import Block from "./models/block.model.js";
-import Transaction from "./models/transaction.model.js";
 import params from "./params.js";
+import { getBlockchain, mineGenesis, addBlock } from "./controllers/block.controller.js";
+import { getTransactions, addTransaction } from "./controllers/transaction.controller.js";
 
 export const socket = server => {
 	const io = new Server(server, {
@@ -15,27 +15,32 @@ export const socket = server => {
 		socket.on("disconnect", () => {
 			console.log("user disconnected");
 		});
+
 		socket.on("block", async block => {
-			socket.broadcast.emit("block", block);
-			const newBlock = new Block(block);
-			await newBlock.save();
-			console.log("added block to db: ", newBlock);
+			try {
+				addBlock(block);
+				socket.broadcast.emit("block", block);
+			} catch (e) {
+				console.error(e);
+			}
 		});
+
 		socket.on("transaction", async transaction => {
-			socket.broadcast.emit("transaction", transaction);
-			const newTx = new Transaction(transaction);
-			await newTx.save();
-			console.log("added tx: ", newTx);
+			try {
+				addTransaction(transaction);
+				socket.broadcast.emit("transaction", transaction);
+			} catch (e) {
+				console.error(e);
+			}
 		});
 
-		console.log("a user connected");
+		console.log("user connected");
 
-		const blocks = await Block.find();
-		socket.emit("blockchain", blocks);
+		const blockchain = await getBlockchain();
+		const transactions = await getTransactions();
 		socket.emit("params", params);
-
-		// const transactions = await Transaction.find();
-		// socket.emit("all transactions", transactions);
+		socket.emit("blockchain", blockchain);
+		socket.emit("transactions", transactions);
 	});
 
 	return io;
