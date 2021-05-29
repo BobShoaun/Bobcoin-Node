@@ -1,7 +1,7 @@
 // consensus parameters
 const params = {
 	name: "Bobcoin",
-	symbol: "BBC", // or BCX ?
+	symbol: "XBC",
 	coin: 100000000, // amounts are stored as the smallest unit, this is how many of the smallest unit that amounts to 1 coin.
 	version: 1,
 	addressPre: "06",
