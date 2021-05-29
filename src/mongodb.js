@@ -1,12 +1,9 @@
 import mongoose from "mongoose";
-import dotenv from "dotenv";
+import { atlasURI } from "./settings.js";
 
 export const mongodb = () => {
-	dotenv.config();
-	const uri = process.env.ATLAS_URI;
-
 	try {
-		mongoose.connect(uri, {
+		mongoose.connect(atlasURI, {
 			useNewUrlParser: true,
 			useCreateIndex: true,
 			useUnifiedTopology: true,
