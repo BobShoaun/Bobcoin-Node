@@ -1,11 +1,5 @@
 import Express from "express";
-import Block from "../models/block.model.js";
-import Transaction from "../models/transaction.model.js";
-
-import BlockCrypto from "blockcrypto";
-import params from "../params.js";
-
-const { mineGenesisBlock, createCoinbaseTransaction, calculateBlockHash } = BlockCrypto;
+import { getTransactions, addTransaction } from "../controllers/transaction.controller.js";
 
 export const transactionsRouter = io => {
 	const router = Express.Router();
@@ -17,8 +11,7 @@ export const transactionsRouter = io => {
 
 	router.get("/", async (req, res) => {
 		try {
-			const transactions = await Transaction.find();
-			res.send(transactions);
+			res.send(await getTransactions());
 		} catch (e) {
 			error(res, e);
 		}
@@ -27,10 +20,9 @@ export const transactionsRouter = io => {
 	router.post("/", async (req, res) => {
 		try {
 			const transaction = req.body;
-			const transactionDB = new Transaction(req.body);
-			await transactionDB.save();
-			res.send("transaction added!");
+			addTransaction(transaction);
 			io.sockets.emit("transaction", transaction);
+			res.send("transaction added and broadcasted!");
 		} catch (e) {
 			error(res, e);
 		}
