@@ -9,7 +9,7 @@ const params = {
 	initBlkReward: 5000000000, // in coins
 	blkRewardHalflife: 10, // in block height
 	initBlockDiff: 1,
-	initHashTarg: "000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+	initHashTarg: "00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 	targBlkTime: 5 * 60, // 5 minutes in seconds
 	diffRecalcHeight: 20, // in block height
 	minDiffCorrFact: 1 / 4,

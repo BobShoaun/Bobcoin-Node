@@ -1,7 +1,7 @@
 import { Server } from "socket.io";
 
 import params from "./params.js";
-import { getBlockchain, mineGenesis, addBlock } from "./controllers/block.controller.js";
+import { getBlockchain, addBlock } from "./controllers/block.controller.js";
 import { getTransactions, addTransaction } from "./controllers/transaction.controller.js";
 
 export const socket = server => {

@@ -31,12 +31,13 @@ export async function getBlockchain() {
 
 export async function addBlock(block) {
 	const blockchain = createBlockchain(await Block.find());
-	const isBlockValid = isBlockValidInBlockchain(params, blockchain, block);
-	if (!isBlockValid) throw new Error("Block is not valid!");
 
 	addBlockToBlockchain(blockchain, block);
-	const isChainValid = isBlockchainValid(params, blockchain);
-	if (!isChainValid) throw new Error("Block compromises blockchain validity!");
+	try {
+		isBlockchainValid(params, blockchain, block);
+	} catch (e) {
+		console.error(e);
+	}
 
 	const blockDB = new Block(block);
 	await blockDB.save();
