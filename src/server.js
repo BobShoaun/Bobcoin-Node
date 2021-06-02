@@ -11,6 +11,10 @@ import { transactionsRouter } from "./routes/transactions.route.js";
 const app = Express();
 const server = http.createServer(app);
 
+app.get("/", (req, res) => {
+	res.send("Welcome to the only Bobcoin Node");
+});
+
 server.listen(port, () => {
 	console.log("Server listening on port: ", port);
 });
