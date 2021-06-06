@@ -1,4 +1,4 @@
-import BlockCrypto, { RESULT } from "blockcrypto";
+import BlockCrypto from "blockcrypto";
 
 import params from "../params.js";
 import Block from "../models/block.model.js";
