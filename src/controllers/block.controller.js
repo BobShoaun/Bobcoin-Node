@@ -1,4 +1,4 @@
-import BlockCrypto from "blockcrypto";
+import BlockCrypto, { RESULT } from "blockcrypto";
 
 import params from "../params.js";
 import Block from "../models/block.model.js";
@@ -11,6 +11,7 @@ const {
 	addBlockToBlockchain,
 	isBlockValidInBlockchain,
 	isBlockchainValid,
+	RESULT,
 } = BlockCrypto;
 
 export async function mineGenesis(address) {
@@ -33,11 +34,9 @@ export async function addBlock(block) {
 	const blockchain = createBlockchain(await Block.find());
 
 	addBlockToBlockchain(blockchain, block);
-	try {
-		isBlockchainValid(params, blockchain, block);
-	} catch (e) {
-		console.error(e);
-	}
+
+	if (isBlockchainValid(params, blockchain, block).code !== RESULT.VALID)
+		throw Error("invalid block");
 
 	const blockDB = new Block(block);
 	await blockDB.save();

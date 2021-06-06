@@ -8,7 +8,7 @@ const params = {
 	checksumLen: 4,
 	initBlkReward: 500 * 100_000_000, // in coins
 	blkRewardHalflife: 10, // in block height
-	initBlockDiff: 1,
+	initBlkDiff: 1,
 	initHashTarg: "0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 	targBlkTime: 5 * 60, // 5 minutes in seconds
 	diffRecalcHeight: 20, // in block height

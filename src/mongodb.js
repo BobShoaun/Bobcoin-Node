@@ -9,7 +9,7 @@ export const mongodb = () => {
 			useUnifiedTopology: true,
 		});
 	} catch (e) {
-		console.error("could not connect");
+		console.error("could not connect to mongodb");
 	}
 
 	const connection = mongoose.connection;
