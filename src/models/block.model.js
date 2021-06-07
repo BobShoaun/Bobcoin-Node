@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-import { transactionSchema } from "./transaction.model.js";
 
 const blockSchema = new mongoose.Schema(
 	{
@@ -31,8 +30,6 @@ const blockSchema = new mongoose.Schema(
 			type: Number,
 			required: true,
 		},
-		// transactions: [{ type: transactionSchema }],
-		// transactions: [transactionSchema],
 		transactions: [{ type: mongoose.Schema.Types.ObjectId, ref: "transaction" }],
 	},
 	{
