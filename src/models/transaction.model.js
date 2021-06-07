@@ -1,8 +1,6 @@
 import mongoose from "mongoose";
 
-const Schema = mongoose.Schema;
-
-export const transactionSchema = new Schema(
+export const transactionSchema = new mongoose.Schema(
 	{
 		hash: {
 			type: String,
@@ -55,5 +53,5 @@ export const transactionSchema = new Schema(
 	}
 );
 
-const Transaction = mongoose.model("Transaction", transactionSchema);
+const Transaction = mongoose.model("transaction", transactionSchema);
 export default Transaction;

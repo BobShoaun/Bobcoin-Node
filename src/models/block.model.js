@@ -1,9 +1,7 @@
 import mongoose from "mongoose";
 import { transactionSchema } from "./transaction.model.js";
 
-const Schema = mongoose.Schema;
-
-const blockSchema = new Schema(
+const blockSchema = new mongoose.Schema(
 	{
 		hash: {
 			type: String,
@@ -33,12 +31,14 @@ const blockSchema = new Schema(
 			type: Number,
 			required: true,
 		},
-		transactions: [{ type: transactionSchema }],
+		// transactions: [{ type: transactionSchema }],
+		// transactions: [transactionSchema],
+		transactions: [{ type: mongoose.Schema.Types.ObjectId, ref: "transaction" }],
 	},
 	{
 		timestamps: true,
 	}
 );
 
-const Block = mongoose.model("Block", blockSchema);
+const Block = mongoose.model("block", blockSchema);
 export default Block;

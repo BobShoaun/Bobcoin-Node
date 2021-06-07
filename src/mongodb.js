@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { atlasURI } from "./settings.js";
+import { atlasURI } from "./config.js";
 
 export const mongodb = () => {
 	try {
@@ -7,6 +7,7 @@ export const mongodb = () => {
 			useNewUrlParser: true,
 			useCreateIndex: true,
 			useUnifiedTopology: true,
+			useFindAndModify: false,
 		});
 	} catch (e) {
 		console.error("could not connect to mongodb");

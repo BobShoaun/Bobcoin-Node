@@ -18,26 +18,30 @@ export async function mineGenesis(address) {
 	const coinbase = createCoinbaseTransaction(params, [], null, [], address);
 	const genesis = mineGenesisBlock(params, [coinbase]);
 
-	const genesisDB = new Block(genesis);
-	const coinbaseDB = new Transaction(coinbase);
-	await genesisDB.save();
-	await coinbaseDB.save();
-
+	await addBlock(genesis);
 	return genesis;
 }
 
 export async function getBlockchain() {
-	return createBlockchain(await Block.find());
+	const blocks = await Block.find().populate("transactions");
+	return createBlockchain(blocks);
 }
 
 export async function addBlock(block) {
-	const blockchain = createBlockchain(await Block.find());
-
+	const blockchain = await getBlockchain();
 	addBlockToBlockchain(blockchain, block);
 
 	if (isBlockchainValid(params, blockchain, block).code !== RESULT.VALID)
 		throw Error("invalid block");
 
-	const blockDB = new Block(block);
-	await blockDB.save();
+	block.transactions = await Promise.all(
+		block.transactions.map(
+			async tx =>
+				await Transaction.findOneAndUpdate({ hash: tx.hash }, tx, {
+					upsert: true,
+					returnNewDocument: true,
+				})
+		)
+	);
+	await new Block(block).save();
 }

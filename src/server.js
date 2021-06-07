@@ -2,7 +2,7 @@ import http from "http";
 import Express from "express";
 import cors from "cors";
 
-import { port } from "./settings.js";
+import { port } from "./config.js";
 import { socket } from "./socket.js";
 import { mongodb } from "./mongodb.js";
 import { blocksRouter } from "./routes/blocks.route.js";
