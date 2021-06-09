@@ -12,7 +12,7 @@ export const transactionSchema = new mongoose.Schema(
 			required: true,
 		},
 		version: {
-			type: Number,
+			type: String,
 			required: true,
 		},
 		inputs: [

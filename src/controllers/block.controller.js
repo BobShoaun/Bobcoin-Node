@@ -6,16 +6,20 @@ import Transaction from "../models/transaction.model.js";
 
 const {
 	mineGenesisBlock,
-	createCoinbaseTransaction,
 	createBlockchain,
-	addBlockToBlockchain,
 	isBlockValidInBlockchain,
 	isBlockchainValid,
+	createTransaction,
+	calculateTransactionHash,
+	createOutput,
 	RESULT,
+	addBlock: addBlockToBlockchain,
 } = BlockCrypto;
 
 export async function mineGenesis(address) {
-	const coinbase = createCoinbaseTransaction(params, [], null, [], address);
+	const output = createOutput(address, params.initBlkReward);
+	const coinbase = createTransaction(params, [], [output]);
+	coinbase.hash = calculateTransactionHash(coinbase);
 	const genesis = mineGenesisBlock(params, [coinbase]);
 
 	await addBlock(genesis);
@@ -39,7 +43,7 @@ export async function addBlock(block) {
 			async tx =>
 				await Transaction.findOneAndUpdate({ hash: tx.hash }, tx, {
 					upsert: true,
-					returnNewDocument: true,
+					new: true,
 				})
 		)
 	);

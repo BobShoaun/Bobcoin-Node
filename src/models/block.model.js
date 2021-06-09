@@ -27,7 +27,11 @@ const blockSchema = new mongoose.Schema(
 			required: true,
 		},
 		version: {
-			type: Number,
+			type: String,
+			required: true,
+		},
+		merkleRoot: {
+			type: String,
 			required: true,
 		},
 		transactions: [{ type: mongoose.Schema.Types.ObjectId, ref: "transaction" }],

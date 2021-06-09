@@ -13,13 +13,14 @@ export const socket = server => {
 
 	io.on("connection", async socket => {
 		socket.on("disconnect", () => {
-			console.log("user disconnected");
+			console.log("a peer disconnected");
 		});
 
 		socket.on("block", async block => {
 			try {
 				addBlock(block);
 				socket.broadcast.emit("block", block);
+				console.log(`block ${block.hash} accepted and relayed`);
 			} catch (e) {
 				console.error(e);
 			}
@@ -29,12 +30,13 @@ export const socket = server => {
 			try {
 				addTransaction(transaction);
 				socket.broadcast.emit("transaction", transaction);
+				console.log(`transaction ${transaction.hash} accepted and relayed`);
 			} catch (e) {
 				console.error(e);
 			}
 		});
 
-		console.log("user connected");
+		console.log("a peer connected");
 
 		const blockchain = await getBlockchain();
 		const transactions = await getTransactions();

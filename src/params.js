@@ -3,19 +3,19 @@ const params = {
 	name: "Bobcoin",
 	symbol: "XBC",
 	coin: 100_000_000, // amounts are stored as the smallest unit, this is how many of the smallest unit that amounts to 1 coin.
-	version: 1,
+	version: "0.0.1",
 	addressPre: "06",
 	checksumLen: 4,
-	initBlkReward: 500 * 100_000_000, // in coins
-	blkRewardHalflife: 10, // in block height
+	initBlkReward: 4096 * 100_000_000, // in coins
+	blkRewardHalflife: 20, // in block height
 	initBlkDiff: 1,
-	initHashTarg: "0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+	initHashTarg: "0000afffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 	targBlkTime: 5 * 60, // 5 minutes in seconds
-	diffRecalcHeight: 20, // in block height
+	diffRecalcHeight: 10, // in block height
 	minDiffCorrFact: 1 / 4,
 	maxDiffCorrFact: 4,
 	blkMaturity: 8, // number of blocks that has to be mined on top (confirmations + 1) to be considered matured
-	hardCap: 500_000_000 * 100_000_000, // upper bound to amt of coins in circulation
+	hardCap: 819_200_000 * 100_000_000, // upper bound to amt of coins in circulation
 	/*
 
   infinite sum of: 
@@ -25,6 +25,12 @@ const params = {
 
   blkRewardHalflife: 100_000
   initBlkReward: 4096 * coin
+  give us hardCap: 819_200_000 * coin 
+
+  or 
+
+  blkRewardHalflife: 800_000
+  initBlkReward: 512 * coin
   give us hardCap: 819_200_000 * coin 
 
   */
