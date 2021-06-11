@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { atlasURI } from "./config.js";
+import { atlasURI, network } from "./config.js";
 
 export const mongodb = () => {
 	try {
@@ -15,6 +15,6 @@ export const mongodb = () => {
 
 	const connection = mongoose.connection;
 	connection.once("open", () => {
-		console.log("MongoDB database connection established");
+		console.log("MongoDB database connection established to: ", network);
 	});
 };
