@@ -16,7 +16,7 @@ const {
 	addBlock: addBlockToBlockchain,
 } = BlockCrypto;
 
-export async function mineGenesis(address) {
+export const mineGenesis = async address => {
 	const output = createOutput(address, params.initBlkReward);
 	const coinbase = createTransaction(params, [], [output]);
 	coinbase.hash = calculateTransactionHash(coinbase);
@@ -24,15 +24,29 @@ export async function mineGenesis(address) {
 
 	await addBlock(genesis);
 	return genesis;
-}
+};
 
-export async function getBlockchain() {
-	const blocks = await Block.find().populate("transactions");
-	return createBlockchain(blocks);
-}
+export const getBlockchain = async (limit, height, timestamp) => {
+	const query = height
+		? {
+				$or: [{ height: { $lt: height } }, { height: height, timestamp: { $lt: timestamp } }],
+		  }
+		: {};
+	const blocks = await Block.find(query)
+		.sort({ height: -1, timestamp: -1 })
+		.limit(limit)
+		.populate("transactions");
+	return blocks;
+};
 
-export async function addBlock(block) {
-	const blockchain = await getBlockchain();
+export const getBlock = async hash => {
+	const block = await Block.findOne({ hash: hash }).populate("transactions");
+	if (!block) throw Error("cannot find block with hash: " + hash);
+	return block;
+};
+
+export const addBlock = async block => {
+	const blockchain = createBlockchain(await getBlockchain());
 	addBlockToBlockchain(blockchain, block);
 
 	if (isBlockchainValid(params, blockchain, block).code !== RESULT.VALID)
@@ -48,4 +62,4 @@ export async function addBlock(block) {
 		)
 	);
 	await new Block(block).save();
-}
+};
