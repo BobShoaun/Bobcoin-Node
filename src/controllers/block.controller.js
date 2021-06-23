@@ -14,6 +14,11 @@ const {
 	createOutput,
 	RESULT,
 	addBlock: addBlockToBlockchain,
+	findTXO,
+	bigIntToHex64,
+	calculateBlockReward,
+	calculateHashTarget,
+	getBlockConfirmations,
 } = BlockCrypto;
 
 export const mineGenesis = async address => {
@@ -43,6 +48,33 @@ export const getBlock = async hash => {
 	const block = await Block.findOne({ hash: hash }).populate("transactions");
 	if (!block) throw Error("cannot find block with hash: " + hash);
 	return block;
+};
+
+export const getBlockInfo = async hash => {
+	const block = await getBlock(hash);
+	const blockchain = createBlockchain(await Block.find().populate("transactions"));
+	const transactions = await Transaction.find();
+
+	const totalInput = block.transactions
+		.slice(1)
+		.reduce(
+			(total, tx) =>
+				total + tx.inputs.reduce((inT, input) => inT + findTXO(input, transactions).amount, 0),
+			0
+		);
+
+	const totalOutput = block.transactions
+		.slice(1)
+		.reduce((total, tx) => total + tx.outputs.reduce((outT, output) => outT + output.amount, 0), 0);
+
+	const validation = isBlockValidInBlockchain(params, blockchain, block);
+	const isValid = validation.code === RESULT.VALID;
+	const fee = totalInput - totalOutput;
+	const confirmations = getBlockConfirmations(params, blockchain, block);
+	const hashTarget = bigIntToHex64(calculateHashTarget(params, block));
+	const reward = calculateBlockReward(params, block.height);
+
+	return { block, isValid, totalInput, totalOutput, fee, confirmations, hashTarget, reward };
 };
 
 export const addBlock = async block => {
