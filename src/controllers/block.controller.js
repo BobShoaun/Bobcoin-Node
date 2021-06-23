@@ -31,19 +31,6 @@ export const mineGenesis = async address => {
 	return genesis;
 };
 
-export const getBlockchain = async (limit, height, timestamp) => {
-	const query = height
-		? {
-				$or: [{ height: { $lt: height } }, { height: height, timestamp: { $lt: timestamp } }],
-		  }
-		: {};
-	const blocks = await Block.find(query)
-		.sort({ height: -1, timestamp: -1 })
-		.limit(limit)
-		.populate("transactions");
-	return blocks;
-};
-
 export const getBlock = async hash => {
 	const block = await Block.findOne({ hash: hash }).populate("transactions");
 	if (!block) throw Error("cannot find block with hash: " + hash);
@@ -78,7 +65,7 @@ export const getBlockInfo = async hash => {
 };
 
 export const addBlock = async block => {
-	const blockchain = createBlockchain(await getBlockchain());
+	const blockchain = createBlockchain(await Block.find().populate("transactions"));
 	addBlockToBlockchain(blockchain, block);
 
 	if (isBlockchainValid(params, blockchain, block).code !== RESULT.VALID)
