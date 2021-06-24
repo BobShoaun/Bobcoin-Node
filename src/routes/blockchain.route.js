@@ -25,7 +25,7 @@ export const blockchainRouter = io => {
 		try {
 			const limit = parseInt(req.query.limit);
 			const height = parseInt(req.query.height);
-			const timestamp = parseInt(req.query.timestamp) || null;
+			const timestamp = parseInt(req.query.timestamp);
 			res.send(await getBlockchainInfo(limit, height, timestamp));
 		} catch (e) {
 			error(res, e);
