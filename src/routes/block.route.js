@@ -28,10 +28,8 @@ export const blocksRouter = io => {
 
 	router.post("/", async (req, res) => {
 		try {
-			const block = req.body;
-			await addBlock(block);
-			io.sockets.emit("block", block);
-			res.send("block added and broadcasted");
+			const block = req.body.block;
+			res.send(await addBlock(block, io));
 		} catch (e) {
 			error(res, e);
 		}

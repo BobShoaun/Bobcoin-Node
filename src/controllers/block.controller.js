@@ -64,12 +64,16 @@ export const getBlockInfo = async hash => {
 	return { block, isValid, totalInput, totalOutput, fee, confirmations, hashTarget, reward };
 };
 
-export const addBlock = async block => {
+export const addBlock = async (block, io) => {
 	const blockchain = createBlockchain(await Block.find().populate("transactions"));
 	addBlockToBlockchain(blockchain, block);
 
-	if (isBlockchainValid(params, blockchain, block).code !== RESULT.VALID)
-		throw Error("invalid block");
+	const validation = isBlockchainValid(params, blockchain, block);
+	const blockInfo = { block, validation };
+
+	if (validation.code !== RESULT.VALID)
+		// invalid block
+		return blockInfo;
 
 	block.transactions = await Promise.all(
 		block.transactions.map(
@@ -81,4 +85,7 @@ export const addBlock = async block => {
 		)
 	);
 	await new Block(block).save();
+
+	io.sockets.emit("block", blockInfo);
+	return blockInfo;
 };

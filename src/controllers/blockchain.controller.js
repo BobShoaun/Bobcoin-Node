@@ -41,8 +41,9 @@ export const getBlockchainInfo = async (limit, height, timestamp) => {
 		else if (bestChainHashes.includes(block.hash)) status = "Confirmed";
 		else status = "Orphaned";
 
-		const isValid = isBlockValidInBlockchain(params, blockchain, block).code === RESULT.VALID;
-		return { block, isValid, status };
+		const validation = isBlockValidInBlockchain(params, blockchain, block);
+		const isValid = validation.code === RESULT.VALID;
+		return { block, isValid, status, validation };
 	});
 
 	const paginated =
@@ -54,4 +55,10 @@ export const getBlockchainInfo = async (limit, height, timestamp) => {
 			  );
 
 	return paginated.slice(0, isNaN(limit) ? paginated.length : limit);
+};
+
+export const getBestBlock = async () => {
+	const blockchain = createBlockchain(await Block.find().populate("transactions"));
+	const headBlock = getHighestValidBlock(params, blockchain);
+	return headBlock;
 };
