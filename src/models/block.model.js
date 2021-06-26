@@ -37,7 +37,7 @@ const blockSchema = new mongoose.Schema(
 		transactions: [{ type: mongoose.Schema.Types.ObjectId, ref: "transaction" }],
 	},
 	{
-		timestamps: true,
+		versionKey: false,
 	}
 );
 

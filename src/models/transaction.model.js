@@ -49,7 +49,7 @@ export const transactionSchema = new mongoose.Schema(
 		],
 	},
 	{
-		timestamps: true,
+		versionKey: false,
 	}
 );
 

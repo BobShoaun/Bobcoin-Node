@@ -77,7 +77,6 @@ export const getMempool = async blockHash => {
 	if (!block) throw Error("invalid head block");
 
 	const mempool = calculateMempool(blockchain, block, transactions);
-	// return mempool;
 	return mempool.map(tx => getMempoolTxInfo(tx, transactions, blockchain));
 };
 
