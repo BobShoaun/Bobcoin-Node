@@ -6,7 +6,7 @@ import {
 	getTransactionInfo,
 } from "../controllers/transaction.controller.js";
 
-export const transactionsRouter = io => {
+export const transactionRouter = io => {
 	const router = Express.Router();
 
 	function error(res, e) {
@@ -41,10 +41,9 @@ export const transactionsRouter = io => {
 
 	router.post("/", async (req, res) => {
 		try {
-			const transaction = req.body;
-			await addTransaction(transaction);
-			io.sockets.emit("transaction", transaction);
-			res.send("transaction added and broadcasted!");
+			const transaction = req.body.transaction;
+			res.send(await addTransaction(transaction));
+			// io.sockets.emit("transaction", transaction);
 		} catch (e) {
 			error(res, e);
 		}

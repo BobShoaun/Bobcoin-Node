@@ -8,10 +8,11 @@ import { mongodb } from "./mongodb.js";
 import { network } from "./config.js";
 import { blocksRouter } from "./routes/block.route.js";
 import { blockchainRouter } from "./routes/blockchain.route.js";
-import { transactionsRouter } from "./routes/transactions.route.js";
+import { transactionRouter } from "./routes/transaction.route.js";
 import { consensusRouter } from "./routes/consensus.route.js";
 import { addressRouter } from "./routes/address.route.js";
 import { mineRouter } from "./routes/mine.route.js";
+import { utxoRouter } from "./routes/utxo.route.js";
 
 const app = Express();
 const server = http.createServer(app);
@@ -35,7 +36,8 @@ app.use(cors());
 
 app.use("/block", blocksRouter(io));
 app.use("/blockchain", blockchainRouter(io));
-app.use("/transactions", transactionsRouter(io));
+app.use("/transaction", transactionRouter(io));
 app.use("/consensus", consensusRouter());
 app.use("/address", addressRouter());
 app.use("/mine", mineRouter());
+app.use("/utxo", utxoRouter());

@@ -13,11 +13,59 @@ const {
 	findTXO,
 	isCoinbaseTxValid,
 	getBlockConfirmations,
+	calculateUTXOSet,
+	calculateMempoolUTXOSet,
+	createInput,
+	createOutput,
+	signTransaction,
+	calculateTransactionHash,
 } = BlockCrypto;
 
 export async function getTransactions() {
 	return await Transaction.find();
 }
+
+const getMempoolTxInfo = (transaction, transactions, blockchain) => {
+	const inputInfo = transaction.inputs.map(input => {
+		const txo = findTXO(input, transactions);
+		return { address: txo.address, amount: txo.amount };
+	});
+	const totalInput = inputInfo.reduce((total, info) => total + info.amount, 0);
+
+	const totalOutput = transaction.outputs.reduce((total, output) => total + output.amount, 0);
+	const fee = totalInput - totalOutput;
+	const isCoinbase = transaction.inputs.length === 0 && transaction.outputs.length === 1;
+
+	const confirmations = 0;
+
+	const validation = isCoinbase
+		? isCoinbaseTxValid(params, transaction)
+		: isTransactionValid(params, transactions, transaction);
+
+	const headBlock = getHighestValidBlock(params, blockchain);
+	const utxos = calculateUTXOSet(blockchain, headBlock);
+	const outputSpent = transaction.outputs.map((output, index) =>
+		utxos.some(
+			utxo =>
+				utxo.address === output.address &&
+				utxo.amount === output.amount &&
+				utxo.txHash === transaction.hash &&
+				utxo.outIndex === index
+		)
+	);
+
+	return {
+		transaction,
+		validation,
+		totalInput,
+		totalOutput,
+		fee,
+		isCoinbase,
+		confirmations,
+		inputInfo,
+		outputSpent,
+	};
+};
 
 export const getMempool = async blockHash => {
 	const transactions = await Transaction.find();
@@ -29,16 +77,20 @@ export const getMempool = async blockHash => {
 	if (!block) throw Error("invalid head block");
 
 	const mempool = calculateMempool(blockchain, block, transactions);
-	return mempool;
+	// return mempool;
+	return mempool.map(tx => getMempoolTxInfo(tx, transactions, blockchain));
 };
 
-export async function addTransaction(transaction) {
+export const addTransaction = async transaction => {
 	const transactions = await getTransactions();
-	if (isTransactionValid(params, transactions, transaction).code !== RESULT.VALID)
-		throw Error("invalid transaction");
+	const validation = isTransactionValid(params, transactions, transaction);
+	if (validation.code !== RESULT.VALID)
+		// invalid transaction
+		return { transaction, validation };
 
 	await new Transaction(transaction).save();
-}
+	return { transaction, validation };
+};
 
 export const getTransaction = async hash => {
 	const transaction = await Transaction.findOne({ hash: hash });
@@ -51,10 +103,9 @@ export const getTransactionInfo = async (hash, blockHash) => {
 	const transactions = await getTransactions();
 	const blockchain = createBlockchain(await Block.find().populate("transactions"));
 
-	const totalInput = transaction.inputs.reduce(
-		(total, input) => total + findTXO(input, transactions).amount,
-		0
-	);
+	const inputAmounts = transaction.inputs.map(input => findTXO(input, transactions).amount);
+	const totalInput = inputAmounts.reduce((total, amount) => total + amount, 0);
+
 	const totalOutput = transaction.outputs.reduce((total, output) => total + output.amount, 0);
 	const fee = totalInput - totalOutput;
 	const isCoinbase = transaction.inputs.length === 0 && transaction.outputs.length === 1;
@@ -71,5 +122,29 @@ export const getTransactionInfo = async (hash, blockHash) => {
 
 	const isValid = validation.code === RESULT.VALID;
 
-	return { transaction, isValid, block, totalInput, totalOutput, fee, isCoinbase, confirmations };
+	const headBlock = getHighestValidBlock(params, blockchain);
+	const utxos = calculateUTXOSet(blockchain, headBlock);
+
+	const outputSpent = transaction.outputs.map((output, index) =>
+		utxos.some(
+			utxo =>
+				utxo.address === output.address &&
+				utxo.amount === output.amount &&
+				utxo.txHash === transaction.hash &&
+				utxo.outIndex === index
+		)
+	);
+
+	return {
+		transaction,
+		isValid,
+		block,
+		totalInput,
+		totalOutput,
+		fee,
+		isCoinbase,
+		confirmations,
+		inputAmounts,
+		outputSpent,
+	};
 };
