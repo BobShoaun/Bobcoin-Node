@@ -13,6 +13,8 @@ const {
 	createBlockchain,
 } = BlockCrypto;
 
+import { getTransactionInfo } from "./transaction.controller.js";
+
 export const getAddressInfo = async (address, blockHash) => {
 	const transactions = await Transaction.find();
 	const blockchain = createBlockchain(await Block.find().populate("transactions"));
@@ -42,10 +44,16 @@ export const getAddressInfo = async (address, blockHash) => {
 		0
 	);
 
+	const inboundTxs = await Promise.all(
+		receivedTxs.map(async tx => await getTransactionInfo(tx.hash))
+	);
+
+	const outboundTxs = await Promise.all(sentTxs.map(async tx => await getTransactionInfo(tx.hash)));
+
 	let isValid = false;
 	try {
 		isValid = isAddressValid(params, address);
 	} catch {}
 
-	return { address, isValid, utxos, receivedTxs, sentTxs, totalReceived, totalSent, balance };
+	return { address, isValid, utxos, inboundTxs, outboundTxs, totalReceived, totalSent, balance };
 };

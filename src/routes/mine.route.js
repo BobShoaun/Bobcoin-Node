@@ -12,7 +12,7 @@ export const mineRouter = () => {
 		console.log(e);
 	};
 
-	router.post("/create_candidate_block", async (req, res) => {
+	router.post("/candidate_block", async (req, res) => {
 		const previousBlock = req.body.previousBlock;
 		const mempoolTxs = req.body.mempoolTxs;
 		const miner = req.body.miner;

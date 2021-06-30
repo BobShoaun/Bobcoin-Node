@@ -39,11 +39,11 @@ export const socket = server => {
 
 		console.log("a peer connected");
 
-		const blockchain = await getBlockchain();
-		const transactions = await getTransactions();
-		socket.emit("params", params);
-		socket.emit("blockchain", blockchain);
-		socket.emit("transactions", transactions);
+		// const blockchain = await getBlockchain();
+		// const transactions = await getTransactions();
+		// socket.emit("params", params);
+		// socket.emit("blockchain", blockchain);
+		// socket.emit("transactions", transactions);
 	});
 
 	return io;

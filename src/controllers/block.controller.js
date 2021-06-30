@@ -4,6 +4,8 @@ import params from "../params.js";
 import Block from "../models/block.model.js";
 import Transaction from "../models/transaction.model.js";
 
+import { getTransactionInfo } from "./transaction.controller.js";
+
 const {
 	mineGenesisBlock,
 	createBlockchain,
@@ -61,7 +63,22 @@ export const getBlockInfo = async hash => {
 	const hashTarget = bigIntToHex64(calculateHashTarget(params, block));
 	const reward = calculateBlockReward(params, block.height);
 
-	return { block, isValid, totalInput, totalOutput, fee, confirmations, hashTarget, reward };
+	const transactionsInfo = await Promise.all(
+		block.transactions.map(async tx => await getTransactionInfo(tx.hash, block.hash))
+	);
+
+	return {
+		block,
+		isValid,
+		validation,
+		transactionsInfo,
+		totalInput,
+		totalOutput,
+		fee,
+		confirmations,
+		hashTarget,
+		reward,
+	};
 };
 
 export const addBlock = async (block, io) => {

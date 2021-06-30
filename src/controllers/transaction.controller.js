@@ -43,16 +43,8 @@ const getMempoolTxInfo = (transaction, transactions, blockchain) => {
 		: isTransactionValid(params, transactions, transaction);
 
 	const headBlock = getHighestValidBlock(params, blockchain);
-	const utxos = calculateUTXOSet(blockchain, headBlock);
-	const outputSpent = transaction.outputs.map((output, index) =>
-		utxos.some(
-			utxo =>
-				utxo.address === output.address &&
-				utxo.amount === output.amount &&
-				utxo.txHash === transaction.hash &&
-				utxo.outIndex === index
-		)
-	);
+	// const utxos = calculateUTXOSet(blockchain, headBlock);
+	const outputSpent = transaction.outputs.map((output, index) => false);
 
 	return {
 		transaction,
@@ -102,8 +94,11 @@ export const getTransactionInfo = async (hash, blockHash) => {
 	const transactions = await getTransactions();
 	const blockchain = createBlockchain(await Block.find().populate("transactions"));
 
-	const inputAmounts = transaction.inputs.map(input => findTXO(input, transactions).amount);
-	const totalInput = inputAmounts.reduce((total, amount) => total + amount, 0);
+	const inputInfo = transaction.inputs.map(input => {
+		const txo = findTXO(input, transactions);
+		return { address: txo.address, amount: txo.amount };
+	});
+	const totalInput = inputInfo.reduce((total, info) => total + info.amount, 0);
 
 	const totalOutput = transaction.outputs.reduce((total, output) => total + output.amount, 0);
 	const fee = totalInput - totalOutput;
@@ -113,7 +108,7 @@ export const getTransactionInfo = async (hash, blockHash) => {
 	const block =
 		blockchain.find(block => block.hash === blockHash) ??
 		blockchain.find(block => block.transactions.some(tx => tx.hash === hash));
-	const confirmations = getBlockConfirmations(params, blockchain, block);
+	const confirmations = block ? getBlockConfirmations(params, blockchain, block) : 0;
 
 	const validation = isCoinbase
 		? isCoinbaseTxValid(params, transaction)
@@ -124,26 +119,28 @@ export const getTransactionInfo = async (hash, blockHash) => {
 	const headBlock = getHighestValidBlock(params, blockchain);
 	const utxos = calculateUTXOSet(blockchain, headBlock);
 
-	const outputSpent = transaction.outputs.map((output, index) =>
-		utxos.some(
-			utxo =>
-				utxo.address === output.address &&
-				utxo.amount === output.amount &&
-				utxo.txHash === transaction.hash &&
-				utxo.outIndex === index
-		)
+	const outputSpent = transaction.outputs.map(
+		(output, index) =>
+			!utxos.some(
+				utxo =>
+					utxo.address === output.address &&
+					utxo.amount === output.amount &&
+					utxo.txHash === transaction.hash &&
+					utxo.outIndex === index
+			)
 	);
 
 	return {
 		transaction,
 		isValid,
+		validation,
 		block,
 		totalInput,
 		totalOutput,
 		fee,
 		isCoinbase,
 		confirmations,
-		inputAmounts,
+		inputInfo,
 		outputSpent,
 	};
 };
