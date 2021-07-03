@@ -86,7 +86,7 @@ export const addBlock = async (block, io) => {
 	addBlockToBlockchain(blockchain, block);
 
 	const validation = isBlockchainValid(params, blockchain, block);
-	const blockInfo = { block, validation };
+	const blockInfo = { block, validation, status: "Unconfirmed" };
 
 	if (validation.code !== RESULT.VALID)
 		// invalid block
