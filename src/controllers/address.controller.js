@@ -7,13 +7,70 @@ const {
 	getHighestValidBlock,
 	isAddressValid,
 	getAddressTxs,
-	getTxBlock,
 	findTXO,
 	calculateUTXOSet,
 	createBlockchain,
+	isTransactionValid,
+	RESULT,
+	isCoinbaseTxValid,
+	getBlockConfirmations,
 } = BlockCrypto;
 
-import { getTransactionInfo } from "./transaction.controller.js";
+import { getTransaction } from "./transaction.controller.js";
+
+const getTransactionInfo = async (blockchain, transactions, hash, blockHash) => {
+	const transaction = await getTransaction(hash);
+
+	const inputInfo = transaction.inputs.map(input => {
+		const txo = findTXO(input, transactions);
+		return { address: txo.address, amount: txo.amount };
+	});
+	const totalInput = inputInfo.reduce((total, info) => total + info.amount, 0);
+
+	const totalOutput = transaction.outputs.reduce((total, output) => total + output.amount, 0);
+	const fee = totalInput - totalOutput;
+	const isCoinbase = transaction.inputs.length === 0 && transaction.outputs.length === 1;
+
+	// TODO: find from best chain not entire blockchain, or not?
+	const block =
+		blockchain.find(block => block.hash === blockHash) ??
+		blockchain.find(block => block.transactions.some(tx => tx.hash === hash));
+	const confirmations = block ? getBlockConfirmations(params, blockchain, block) : 0;
+
+	const validation = isCoinbase
+		? isCoinbaseTxValid(params, transaction)
+		: isTransactionValid(params, transactions, transaction);
+
+	const isValid = validation.code === RESULT.VALID;
+
+	const headBlock = getHighestValidBlock(params, blockchain);
+	const utxos = calculateUTXOSet(blockchain, headBlock);
+
+	const outputSpent = transaction.outputs.map(
+		(output, index) =>
+			!utxos.some(
+				utxo =>
+					utxo.address === output.address &&
+					utxo.amount === output.amount &&
+					utxo.txHash === transaction.hash &&
+					utxo.outIndex === index
+			)
+	);
+
+	return {
+		transaction,
+		isValid,
+		validation,
+		block,
+		totalInput,
+		totalOutput,
+		fee,
+		isCoinbase,
+		confirmations,
+		inputInfo,
+		outputSpent,
+	};
+};
 
 export const getAddressInfo = async (address, blockHash) => {
 	const transactions = await Transaction.find();
@@ -45,10 +102,12 @@ export const getAddressInfo = async (address, blockHash) => {
 	);
 
 	const inboundTxs = await Promise.all(
-		receivedTxs.map(async tx => await getTransactionInfo(tx.hash))
+		receivedTxs.map(async tx => await getTransactionInfo(blockchain, transactions, tx.hash))
 	);
 
-	const outboundTxs = await Promise.all(sentTxs.map(async tx => await getTransactionInfo(tx.hash)));
+	const outboundTxs = await Promise.all(
+		sentTxs.map(async tx => await getTransactionInfo(blockchain, transactions, tx.hash))
+	);
 
 	let isValid = false;
 	try {
