@@ -2,11 +2,11 @@
 	"name": "bobcoin-backend-node",
 	"version": "1.0.0",
 	"description": "Node which hosts and synchronizes a copy of the entire Bobcoin blockchain.",
-	"main": "src/server.js",
+	"main": "src/index.js",
 	"type": "module",
 	"scripts": {
-		"dev": "nodemon src/server.js",
-		"start": "node src/server.js"
+		"dev": "nodemon src/index.js",
+		"start": "node src/index.js"
 	},
 	"repository": {
 		"type": "git",

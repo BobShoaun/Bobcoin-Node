@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const blockSchema = new mongoose.Schema(
+export const blockSchema = new mongoose.Schema(
 	{
 		hash: {
 			type: String,

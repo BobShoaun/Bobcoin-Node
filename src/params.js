@@ -34,7 +34,7 @@ const testnetParams = {
 	diffRecalcHeight: 10, // in block height
 	minDiffCorrFact: 1 / 4,
 	maxDiffCorrFact: 4,
-	blkMaturity: 8, // number of blocks that has to be mined on top (confirmations + 1) to be considered matured
+	blkMaturity: 5, // number of blocks that has to be mined on top (confirmations + 1) to be considered matured
 	hardCap: 819_200_000 * 100_000_000, // upper bound to amt of coins in circulation
 };
 
@@ -53,7 +53,7 @@ const mainnetParams = {
 	diffRecalcHeight: 50, // in block height
 	minDiffCorrFact: 1 / 4,
 	maxDiffCorrFact: 4,
-	blkMaturity: 8, // number of blocks that has to be mined on top (confirmations + 1) to be considered matured
+	blkMaturity: 5, // number of blocks that has to be mined on top (confirmations + 1) to be considered matured
 	hardCap: 10_240_000 * 100_000_000, // upper bound to amt of coins in circulation
 };
 

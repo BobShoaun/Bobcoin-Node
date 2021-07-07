@@ -25,7 +25,7 @@ export async function getTransactions() {
 	return await Transaction.find();
 }
 
-const getMempoolTxInfo = (transaction, transactions, blockchain) => {
+const getMempoolTxInfo = (transaction, transactions) => {
 	const inputInfo = transaction.inputs.map(input => {
 		const txo = findTXO(input, transactions);
 		return { address: txo.address, amount: txo.amount };
@@ -34,17 +34,11 @@ const getMempoolTxInfo = (transaction, transactions, blockchain) => {
 
 	const totalOutput = transaction.outputs.reduce((total, output) => total + output.amount, 0);
 	const fee = totalInput - totalOutput;
-	const isCoinbase = transaction.inputs.length === 0 && transaction.outputs.length === 1;
+	const validation = isTransactionValid(params, transactions, transaction);
 
-	const confirmations = 0;
-
-	const validation = isCoinbase
-		? isCoinbaseTxValid(params, transaction)
-		: isTransactionValid(params, transactions, transaction);
-
-	const headBlock = getHighestValidBlock(params, blockchain);
+	// const headBlock = getHighestValidBlock(params, blockchain);
 	// const utxos = calculateUTXOSet(blockchain, headBlock);
-	const outputSpent = transaction.outputs.map((output, index) => false);
+	const outputSpent = transaction.outputs.map(() => false);
 
 	return {
 		transaction,
@@ -52,8 +46,8 @@ const getMempoolTxInfo = (transaction, transactions, blockchain) => {
 		totalInput,
 		totalOutput,
 		fee,
-		isCoinbase,
-		confirmations,
+		isCoinbase: false,
+		confirmations: 0,
 		inputInfo,
 		outputSpent,
 	};
@@ -69,7 +63,7 @@ export const getMempool = async blockHash => {
 	if (!block) throw Error("invalid head block");
 
 	const mempool = calculateMempool(blockchain, block, transactions);
-	return mempool.map(tx => getMempoolTxInfo(tx, transactions, blockchain));
+	return mempool.map(tx => getMempoolTxInfo(tx, transactions));
 };
 
 export const addTransaction = async transaction => {

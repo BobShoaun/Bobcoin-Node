@@ -33,6 +33,7 @@ export const transactionSchema = new mongoose.Schema(
 					type: String,
 					required: true,
 				},
+				_id: false,
 			},
 		],
 		outputs: [
@@ -45,6 +46,7 @@ export const transactionSchema = new mongoose.Schema(
 					type: Number,
 					required: true,
 				},
+				_id: false,
 			},
 		],
 	},

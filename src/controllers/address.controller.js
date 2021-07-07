@@ -101,13 +101,16 @@ export const getAddressInfo = async (address, blockHash) => {
 		0
 	);
 
-	const inboundTxs = await Promise.all(
-		receivedTxs.map(async tx => await getTransactionInfo(blockchain, transactions, tx.hash))
-	);
+	const inboundTxs = [];
+	const outboundTxs = [];
 
-	const outboundTxs = await Promise.all(
-		sentTxs.map(async tx => await getTransactionInfo(blockchain, transactions, tx.hash))
-	);
+	// const inboundTxs = await Promise.all(
+	// 	receivedTxs.map(async tx => await getTransactionInfo(blockchain, transactions, tx.hash))
+	// );
+
+	// const outboundTxs = await Promise.all(
+	// 	sentTxs.map(async tx => await getTransactionInfo(blockchain, transactions, tx.hash))
+	// );
 
 	let isValid = false;
 	try {
