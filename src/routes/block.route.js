@@ -1,13 +1,13 @@
 import Express from "express";
 
-import { mineGenesis, addBlock, getBlock, getBlockInfo } from "../controllers/block.controller.js";
+import { mineGenesis, getBlock, getBlockInfo } from "../controllers/block.controller.js";
+import { addBlock } from "../controllers/blockchain.controller.js";
 
 export const blocksRouter = io => {
 	const router = Express.Router();
 
 	function error(res, e) {
 		res.status(400).json(`${e}`);
-		console.log(e);
 	}
 
 	router.get("/:hash", async (req, res) => {
@@ -29,7 +29,8 @@ export const blocksRouter = io => {
 	router.post("/", async (req, res) => {
 		try {
 			const block = req.body.block;
-			res.send(await addBlock(block, io));
+			addBlock(block, io);
+			res.send(block);
 		} catch (e) {
 			error(res, e);
 		}

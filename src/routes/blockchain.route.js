@@ -4,6 +4,8 @@ import {
 	getBlockchain,
 	getBlockchainInfo,
 	getBestBlock,
+	getBlockchainNew,
+	getHeadBlock,
 } from "../controllers/blockchain.controller.js";
 
 export const blockchainRouter = io => {
@@ -29,19 +31,16 @@ export const blockchainRouter = io => {
 		try {
 			const limit = parseInt(req.query.limit);
 			const height = parseInt(req.query.height);
-			const timestamp = parseInt(req.query.timestamp);
-			res.send(await getBlockchainInfo(limit, height, timestamp));
+			// const timestamp = parseInt(req.query.timestamp);
+			// res.send(await getBlockchainInfo(limit, height, timestamp));
+			res.send(await getBlockchainNew(limit, height));
 		} catch (e) {
 			error(res, e);
 		}
 	});
 
-	router.get("/head_block", async (req, res) => {
-		try {
-			res.send(await getBestBlock());
-		} catch (e) {
-			error(res, e);
-		}
+	router.get("/head", (req, res) => {
+		res.send(getHeadBlock());
 	});
 
 	return router;

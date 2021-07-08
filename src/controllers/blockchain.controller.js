@@ -1,5 +1,4 @@
 import BlockCrypto from "blockcrypto";
-import Mongoose from "mongoose";
 
 import params from "../params.js";
 import Block from "../models/block.model.js";
@@ -11,20 +10,12 @@ import {
 	Utxo,
 } from "../models/index.js";
 
-const {
-	createBlockchain,
-	getHighestValidBlock,
-	isBlockValidInBlockchain,
-	RESULT,
-	getBestChain,
-	calculateUTXOSet,
-	calculateMempool,
-} = BlockCrypto;
+const { createBlockchain, getHighestValidBlock, isBlockValidInBlockchain, RESULT } = BlockCrypto;
 
-let headBlock = null;
-let unconfirmedBlocks = []; // sorted by descending height
-let mempool = []; // mempool as of headblock, recalc with reorg
-let utxos = []; // utxos as of headblock, recalc with reorg
+export let headBlock = null;
+export let unconfirmedBlocks = []; // sorted by descending height
+export let mempool = []; // mempool as of headblock, recalc with reorg
+export let utxos = []; // utxos as of headblock, recalc with reorg
 
 const insertUnconfirmedBlock = block => {
 	for (let i = 0; i < unconfirmedBlocks.length; i++) {
@@ -33,138 +24,158 @@ const insertUnconfirmedBlock = block => {
 			break;
 		}
 	}
-}
+};
 
-const setHeadBlock = () => {
+// called after head block is updated
+const removeConfirmedBlocks = () => {
+	// remove confirmed blocks from pool and add to persistent db
+	const confirmedHeight = headBlock.height - params.blkMaturity + 1;
+	let lastBlock = headBlock;
+	let currentHash = headBlock.previousHash;
+	const orphanedIndices = [];
+	for (let i = 0; i < unconfirmedBlocks.length; i++) {
+		if (unconfirmedBlocks[i].hash === currentHash) {
+			lastBlock = unconfirmedBlocks[i];
+			currentHash = unconfirmedBlocks[i].previousHash;
+			continue;
+		}
+		// for orphaned blocks
+		if (unconfirmedBlocks[i].height === confirmedHeight) orphanedIndices.push(i); // confirmed orphaned
+	}
 
-}
+	// put to orphaned pool
+	for (let i = orphanedIndices.length - 1; i >= 0; i--) {
+		new OrphanedBlock(unconfirmedBlocks[i]).save();
+		unconfirmedBlocks.splice(orphanedIndices[i], 1);
+	}
 
-const setHeadBlockReorg = () => {
+	if (lastBlock.height !== confirmedHeight)
+		throw Error("something is wrong w the unconfirmed blocks array!");
 
-}
+	// put to best chain, mature blocks
+	new MatureBlock(lastBlock).save();
+	unconfirmedBlocks.splice(unconfirmedBlocks.indexOf(lastBlock), 1);
+};
 
-const setup = async () => {
-  const unconfirmedBlocks = await UnconfirmedBlock.find({}, { _id: false }).sort({ height: -1 });
-  const headBlock = {}; // find headblck
-}
-
-const close = async () => {
-  // dump unconfirmed blocks into persistent
-  await UnconfirmedBlock.deleteMany();
-  await UnconfirmedBlock.insertMany(unconfirmedBlocks);
-}
-
-const addBlock = block => {
-	// check if mining from unconfirmed block
-	const unconfirmedBlock = unconfirmedBlocks.find(b => b.hash === block.previousHash);
-	if (!unconfirmedBlock) throw Error("Previous block not within unconfirmed pool.");
-
-	if (!validateBlock(block)) throw Error("Rejected: Block is invalid");
-
-  if (block.height === headBlock.height + 1) {
-    // new head block
-    
-    if (unconfirmedBlock !== headBlock) {
-      // forked, new head block, call for reorg
-    }
-  }
-
-  if (block.height <= headBlock.height) {
-    // useless forked block
-    insertUnconfirmedBlock(block);
-    return;
-  }
-
-  // update headblock, no reorg
-  if (unconfirmedBlock === headBlock) {
-
-  }
-
-	// update mempool, remove txs in block frm mempool
-	let newMempool = unconfirmedBlock.mempool;
-	for (const transaction of block.transactions)
-		newMempool = newMempool.filter(tx => tx.hash === transaction.hash);
-
-	// update utxos
-	let newUtxos = unconfirmedBlock.utxos;
+const updateMempoolAndUtxos = block => {
 	for (const transaction of block.transactions) {
-		for (const input of transaction.inputs) {
-			let i = 0;
-			for (; i < newUtxos.length; i++) {
-				if (newUtxos[i].txHash === input.txHash && newUtxos[i].outIndex === input.outIndex) {
-					newUtxos.splice(i, 1);
-					break;
+		// update mempool, remove txs in block frm mempool
+		mempool = mempool.filter(tx => tx.hash === transaction.hash);
+
+		// remove spent utxos
+		outer: for (const input of transaction.inputs) {
+			for (let i = 0; i < utxos.length; i++) {
+				if (utxos[i].txHash === input.txHash && utxos[i].outIndex === input.outIndex) {
+					utxos.splice(i, 1);
+					continue outer;
 				}
 			}
-			if (i >= newUtxos.length)
-				// utxo does not exist
-				throw Error("Attempt to spend utxo that doesn't exist");
+			// utxo does not exist
+			throw Error("Attempt to spend utxo that doesn't exist");
 		}
+
+		// insert new utxos
 		for (let i = 0; i < transaction.outputs.length; i++) {
-			newUtxos.push({
+			utxos.push({
 				txHash: transaction.hash,
 				outIndex: i,
-				address: output.address,
-				amount: output.amount,
+				address: transaction.outputs[i].address,
+				amount: transaction.outputs[i].amount,
 			});
 		}
 	}
+};
 
-	// check if it replaces current headBlock
-	if (block.height === headBlock.height + 1) {
-		headBlock = block;
+const recalcMempoolAndUtxos = async () => {
+	utxos = await Utxo.find({}, { _id: false });
+	mempool = await MempoolTransaction.find({}, { _id: false });
+	const bestchain = [headBlock];
 
-		// remove confirmed blocks from pool and add to persistent db
-		const confirmedHeight = headBlock.height - params.blkMaturity + 1;
-		let lastBlock = headBlock;
-		let currentHash = headBlock.previousHash;
-		const orphanedIndices = [];
-		for (let i = 0; i < unconfirmedPool.length; i++) {
-			const unconfirmedBlock = unconfirmedPool[i].block;
-			if (unconfirmedBlock.hash === currentHash) {
-				lastBlock = unconfirmedBlock;
-				currentHash = unconfirmedBlock.previousHash;
-				continue;
-			}
-			// for orphaned blocks
-			if (unconfirmedBlock.height === confirmedHeight) orphanedIndices.push(i); // confirmed orphaned
-		}
-
-		// put to orphaned pool
-		for (let i = orphanedIndices.length - 1; i >= 0; i--) {
-			new OrphanedBlock(unconfirmedPool[i].block).save();
-			unconfirmedPool.splice(orphanedIndices[i], 1);
-		}
-
-		if (lastBlock.height !== confirmedHeight)
-			throw Error("something is wrong w the unconfirmed pool!");
-
-		// put to best chain, mature blocks
-		new MatureBlock(lastBlock).save();
-		for (let i = 0; i < unconfirmedPool.length; i++) {
-			if (unconfirmedPool[i].block === lastBlock) {
-				unconfirmedPool.splice(i, 1);
-				break;
-			}
-		}
+	let currentHash = headBlock.previousHash;
+	for (let i = 0; i < unconfirmedBlocks.length; i++) {
+		if (unconfirmedBlocks[i].hash !== currentHash) continue;
+		currentHash = unconfirmedBlocks[i].previousHash;
+		bestchain.push(unconfirmedBlocks[i]);
 	}
 
-	// insert new block into unconfirmedPool
-	for (let i = 0; i < unconfirmedPool.length; i++) {
-		if (block.height >= unconfirmedBlock[i].block.height) {
-			unconfirmedPool.splice(i, 0, { block, mempool: newMempool, utxo: newUtxos });
-			break;
-		}
+	for (let i = bestchain.length - 1; i >= 0; i--) updateMempoolAndUtxos(bestchain[i]);
+};
+
+export const addBlock = (block, io) => {
+	// check if mining from unconfirmed block
+	const previousBlock = unconfirmedBlocks.find(b => b.hash === block.previousHash);
+	if (!previousBlock) throw Error("Previous block not within unconfirmed pool.");
+
+	if (!validateBlock(block)) throw Error("Rejected: Block is invalid");
+
+	const isNewHead = block.height === headBlock.height + 1;
+	const isReorg = previousBlock !== headBlock;
+
+	if (isNewHead) {
+		headBlock = block;
+		// remove last block(s) which are now confirmed
+		removeConfirmedBlocks();
+	}
+
+	insertUnconfirmedBlock(block);
+
+	if (isNewHead) {
+		// forked, new head block, call for reorg
+		if (isReorg) recalcMempoolAndUtxos();
+		else updateMempoolAndUtxos(block);
 	}
 
 	// broadcast block to other nodes and clients.
 };
 
+export const setupUnconfirmed = async () => {
+	unconfirmedBlocks = await UnconfirmedBlock.find({}, { _id: false }).sort({ height: -1 });
+	// choose heighest block with lowest timestamp
+	const highest = unconfirmedBlocks[0].height;
+	let earliestBlock = unconfirmedBlocks[0];
+	for (const block of unconfirmedBlocks) {
+		if (block.height !== highest) break;
+		if (earliestBlock.timestamp > block.timestamp) earliestBlock = block;
+	}
 
+	headBlock = earliestBlock;
+	await recalcMempoolAndUtxos();
+};
+
+const dumpUnconfirmed = async () => {
+	// dump unconfirmed blocks into persistent
+	await UnconfirmedBlock.deleteMany();
+	await UnconfirmedBlock.insertMany(unconfirmedBlocks);
+};
 
 const validateBlock = block => {
 	return true;
 };
+
+export const getHeadBlock = () => headBlock;
+
+export const getBlockchainNew = async (limit, height) => {
+	const maxHeight = height;
+	const minHeight = height - limit; // exclusive
+	const unconfirmed = unconfirmedBlocks.filter(
+		block => block.height <= maxHeight && block.height > minHeight
+	);
+	const matured = await MatureBlock.find({
+		height: { $lte: maxHeight },
+		height: { $gt: minHeight },
+	});
+	const orphaned = await OrphanedBlock.find({
+		height: { $lte: maxHeight },
+		height: { $gt: minHeight },
+	});
+	return [
+		...unconfirmed.map(block => ({ block, status: "unconfirmed" })),
+		...matured.map(block => ({ block, status: "confirmed" })),
+		...orphaned.map(block => ({ block, status: "orphaned" })),
+	];
+};
+
+// -------
 
 export const getBlockchain = async (limit, height, timestamp) => {
 	const query = height

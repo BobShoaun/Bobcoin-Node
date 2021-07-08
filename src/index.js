@@ -15,6 +15,7 @@ import { mineRouter } from "./routes/mine.route.js";
 import { utxoRouter } from "./routes/utxo.route.js";
 
 import { resetMigration, phase1, phase2 } from "./controllers/migrate.controller.js";
+import { setupUnconfirmed } from "./controllers/blockchain.controller.js";
 
 const app = Express();
 const server = http.createServer(app);
@@ -27,6 +28,7 @@ app.get("/", (req, res) => {
 
 server.listen(port, () => {
 	console.log("Server listening on port: ", port);
+	setupUnconfirmed();
 	// resetMigration();
 	// phase1();
 	// phase2();

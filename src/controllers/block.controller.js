@@ -6,6 +6,15 @@ import Transaction from "../models/transaction.model.js";
 
 import { getTransactionInfo } from "./transaction.controller.js";
 
+import { unconfirmedBlocks } from "../controllers/blockchain.controller.js";
+import {
+	OrphanedBlock,
+	MatureBlock,
+	UnconfirmedBlock,
+	MempoolTransaction,
+	Utxo,
+} from "../models/index.js";
+
 const {
 	mineGenesisBlock,
 	createBlockchain,
@@ -34,9 +43,13 @@ export const mineGenesis = async address => {
 };
 
 export const getBlock = async hash => {
-	const block = await Block.findOne({ hash: hash }).populate("transactions");
-	if (!block) throw Error("cannot find block with hash: " + hash);
-	return block;
+	let block = unconfirmedBlocks.find(block => block.hash === hash);
+	if (block) return block;
+	block = await MatureBlock.findOne({ hash });
+	if (block) return block;
+	block = await OrphanedBlock.findOne({ hash });
+	if (block) return block;
+	throw Error("cannot find block with hash: " + hash);
 };
 
 export const getBlockInfo = async hash => {
