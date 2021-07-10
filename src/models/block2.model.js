@@ -30,13 +30,13 @@ const transactionSchema = new mongoose.Schema(
 
 const blockSchema = new mongoose.Schema(
 	{
+		height: { type: Number, required: true },
 		hash: { type: String, required: true, unique: true },
 		previousHash: { type: String },
-		difficulty: { type: Number, required: true },
-		height: { type: Number, required: true },
-		nonce: { type: Number, required: true },
 		timestamp: { type: Number, required: true },
 		version: { type: String, required: true },
+		difficulty: { type: Number, required: true },
+		nonce: { type: Number, required: true },
 		merkleRoot: { type: String, required: true },
 		transactions: [transactionSchema],
 	},
