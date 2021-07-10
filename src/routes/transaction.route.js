@@ -2,8 +2,8 @@ import Express from "express";
 import {
 	getTransactions,
 	addTransaction,
-	getMempool,
 	getTransactionInfo,
+	getMempoolInfo,
 } from "../controllers/transaction.controller.js";
 
 export const transactionRouter = io => {
@@ -31,19 +31,27 @@ export const transactionRouter = io => {
 		}
 	});
 
-	router.get("/mempool", async (req, res) => {
+	router.get("/mempool", (req, res) => {
 		try {
-			res.send(await getMempool(req.query.block));
+			res.send(req.app.locals.mempool);
 		} catch (e) {
 			error(res, e);
 		}
 	});
 
-	router.post("/", async (req, res) => {
+	router.get("/mempool/info", (req, res) => {
+		try {
+			res.send(getMempoolInfo(req.app.locals));
+		} catch (e) {
+			error(res, e);
+		}
+	});
+
+	router.post("/", (req, res) => {
 		try {
 			const transaction = req.body.transaction;
-			res.send(await addTransaction(transaction));
-			// io.sockets.emit("transaction", transaction);
+			const validation = addTransaction(req.app.locals, transaction);
+			res.send(validation);
 		} catch (e) {
 			error(res, e);
 		}

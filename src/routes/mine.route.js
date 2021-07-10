@@ -1,8 +1,6 @@
 import Express from "express";
 
-import params from "../params.js";
-
-import { createCandidateBlock } from "../controllers/mine.controller.js";
+import { createCandidateBlock, getMiningInfo } from "../controllers/mine.controller.js";
 
 export const mineRouter = () => {
 	const router = Express.Router();
@@ -12,12 +10,16 @@ export const mineRouter = () => {
 		console.log(e);
 	};
 
-	router.post("/candidate_block", async (req, res) => {
+	router.get("/info", (req, res) => {
+		res.send(getMiningInfo(req.app.locals));
+	});
+
+	router.post("/candidate-block", async (req, res) => {
 		const previousBlock = req.body.previousBlock;
-		const mempoolTxs = req.body.mempoolTxs;
+		const transactions = req.body.transactions;
 		const miner = req.body.miner;
 		try {
-			res.send(await createCandidateBlock(previousBlock, mempoolTxs, miner));
+			res.send(await createCandidateBlock(req.app.locals, previousBlock, transactions, miner));
 		} catch (e) {
 			error(res, e);
 		}

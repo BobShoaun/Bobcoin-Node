@@ -14,8 +14,13 @@ import { addressRouter } from "./routes/address.route.js";
 import { mineRouter } from "./routes/mine.route.js";
 import { utxoRouter } from "./routes/utxo.route.js";
 
+import params from "./params.js";
+
 import { resetMigration, phase1, phase2 } from "./controllers/migrate.controller.js";
-import { setupUnconfirmed } from "./controllers/blockchain.controller.js";
+import {
+	setupUnconfirmedBlocks,
+	saveUnconfirmedBlocks,
+} from "./controllers/blockchain.controller.js";
 
 const app = Express();
 const server = http.createServer(app);
@@ -26,13 +31,30 @@ app.get("/", (req, res) => {
 	res.send(message);
 });
 
+app.locals.headBlock = null;
+app.locals.unconfirmedBlocks = []; // sorted by descending height
+app.locals.mempool = []; // mempool as of headblock, recalc with reorg
+app.locals.utxos = []; // utxos as of headblock, recalc with reorg
+app.locals.difficulty = params.initBlkDiff;
+
 server.listen(port, () => {
 	console.log("Server listening on port: ", port);
-	setupUnconfirmed();
 	// resetMigration();
 	// phase1();
 	// phase2();
+	setupUnconfirmedBlocks(app.locals);
 });
+
+// const exit = () => {
+// 	console.log("shutting down server");
+// 	// await dumpUnconfirmed();
+// };
+
+// process.on("exit", exit.bind(null));
+// process.on("SIGINT", exit.bind(null));
+// process.on("SIGUSR1", exit.bind(null));
+// process.on("SIGUSR2", exit.bind(null));
+// process.on("uncaughtException", exit.bind(null));
 
 mongodb();
 const io = socket(server);

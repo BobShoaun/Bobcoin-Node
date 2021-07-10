@@ -6,7 +6,6 @@ import Transaction from "../models/transaction.model.js";
 
 import { getTransactionInfo } from "./transaction.controller.js";
 
-import { unconfirmedBlocks } from "../controllers/blockchain.controller.js";
 import {
 	OrphanedBlock,
 	MatureBlock,
@@ -42,8 +41,8 @@ export const mineGenesis = async address => {
 	return genesis;
 };
 
-export const getBlock = async hash => {
-	let block = unconfirmedBlocks.find(block => block.hash === hash);
+export const getBlock = async (locals, hash) => {
+	let block = locals.unconfirmedBlocks.find(block => block.hash === hash);
 	if (block) return block;
 	block = await MatureBlock.findOne({ hash });
 	if (block) return block;

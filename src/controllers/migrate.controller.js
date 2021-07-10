@@ -13,7 +13,7 @@ import {
 const { createBlockchain, getHighestValidBlock, getBestChain, calculateUTXOSet, calculateMempool } =
 	BlockCrypto;
 
-const cleanBlock = block => ({
+export const cleanBlock = block => ({
 	height: block.height,
 	hash: block.hash,
 	previousHash: block.previousHash,

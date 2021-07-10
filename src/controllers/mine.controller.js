@@ -1,8 +1,6 @@
 import BlockCrypto from "blockcrypto";
 
 import params from "../params.js";
-import Block from "../models/block.model.js";
-import Transaction from "../models/transaction.model.js";
 
 const {
 	createBlockchain,
@@ -11,31 +9,57 @@ const {
 	calculateBlockReward,
 	createTransaction,
 	calculateTransactionHash,
-	createBlock,
 	calculateHashTarget,
 	isBlockValidInBlockchain,
 	addBlock,
 	bigIntToHex64,
+	calculateMerkleRoot,
 	RESULT,
 } = BlockCrypto;
 
-export const getMiningInfo = async () => {
-	const blockchain = createBlockchain(await Block.find().populate("transactions"));
-	const transactions = await Transaction.find();
-};
+export const getMiningInfo = locals => ({
+	headBlock: locals.headBlock,
+	mempool: locals.mempool,
+	unconfirmedBlocks: locals.unconfirmedBlocks,
+});
 
-export const createCandidateBlock = async (previousBlock, mempoolTxs, miner) => {
-	const blockchain = createBlockchain(await Block.find().populate("transactions"));
-	const transactions = await Transaction.find();
-	const fees = mempoolTxs.reduce((total, tx) => total + getTransactionFees(transactions, tx), 0);
+export const createCandidateBlock = async (locals, previousBlock, transactions, miner) => {
+	// TODO: validate first
+
+	let totalInput = 0;
+	let totalOutput = 0;
+	for (const tx of transactions) {
+		for (const input of tx.inputs) {
+			const utxo = locals.utxos.find(
+				utxo => utxo.txHash === input.txHash && utxo.outInput === input.outIndex
+			);
+			if (!utxo) throw Error("Utxo does not exist");
+			totalInput += utxo.amount;
+		}
+		for (const output of tx.outputs) totalOutput += output.amount;
+	}
+
+	const fees = totalInput - totalOutput;
 	const output = createOutput(miner, calculateBlockReward(params, previousBlock.height + 1) + fees);
 	const coinbase = createTransaction(params, [], [output]);
 	coinbase.hash = calculateTransactionHash(coinbase);
-	const block = createBlock(params, blockchain, previousBlock, [coinbase, ...mempoolTxs]);
+	const block = createBlock(params, previousBlock, [coinbase, ...transactions], locals.difficulty);
 	const target = bigIntToHex64(calculateHashTarget(params, block));
-	// validation
-	const blockchainCopy = [...blockchain];
-	addBlock(blockchainCopy, block);
-	const validation = isBlockValidInBlockchain(params, blockchainCopy, block, true);
+
+	const validation = { code: RESULT.VALID };
 	return { block, target, validation };
+};
+
+const createBlock = (params, previousBlock, transactions, difficulty) => {
+	const block = {
+		height: previousBlock.height + 1,
+		previousHash: previousBlock.hash,
+		transactions,
+		timestamp: Date.now(),
+		version: params.version,
+		difficulty,
+		merkleRoot: calculateMerkleRoot(transactions.map(tx => tx.hash)),
+		nonce: 0,
+	};
+	return block;
 };

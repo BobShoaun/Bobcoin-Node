@@ -4,10 +4,10 @@ import { getUTXOs } from "../controllers/utxo.controller.js";
 export const utxoRouter = () => {
 	const router = Express.Router();
 
-	router.get("/:address", async (req, res) => {
+	router.get("/:address", (req, res) => {
 		const block = req.query.block;
 		const address = req.params.address;
-		const utxos = await getUTXOs(address, block);
+		const utxos = getUTXOs(req.app.locals, address, block);
 		res.send(utxos);
 	});
 

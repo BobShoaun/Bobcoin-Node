@@ -4,6 +4,8 @@ import params from "../params.js";
 import Transaction from "../models/transaction.model.js";
 import Block from "../models/block.model.js";
 
+import { MempoolTransaction } from "../models/index.js";
+
 const {
 	isTransactionValid,
 	RESULT,
@@ -53,28 +55,38 @@ const getMempoolTxInfo = (transaction, transactions) => {
 	};
 };
 
-export const getMempool = async blockHash => {
-	const transactions = await Transaction.find();
-	const blockchain = createBlockchain(await Block.find().populate("transactions"));
-	const block = blockHash
-		? await Block.findOne({ hash: blockHash })
-		: getHighestValidBlock(params, blockchain);
+export const getMempoolInfo = locals =>
+	locals.mempool.map(transaction => {
+		const inputs = transaction.inputs.map(input => {
+			const utxo = locals.utxos.find(
+				utxo => utxo.txHash === input.txHash && utxo.outIndex === input.outIndex
+			);
+			return {
+				txHash: utxo.txHash,
+				outIndex: utxo.outIndex,
+				address: utxo.address,
+				amount: utxo.amount,
+				publicKey: input.publicKey,
+				signature: input.signature,
+			};
+		});
 
-	if (!block) throw Error("invalid head block");
+		return {
+			transaction,
+			inputs,
+		};
+	});
 
-	const mempool = calculateMempool(blockchain, block, transactions);
-	return mempool.map(tx => getMempoolTxInfo(tx, transactions));
-};
+export const addTransaction = (locals, transaction) => {
+	// TODO: validation transaction
+	const validation = { code: RESULT.VALID };
 
-export const addTransaction = async transaction => {
-	const transactions = await getTransactions();
-	const validation = isTransactionValid(params, transactions, transaction);
-	if (validation.code !== RESULT.VALID)
-		// invalid transaction
-		return { transaction, validation };
+	if (validation.code !== RESULT.VALID) throw Error("Rejected: transaction is invalid");
 
-	await new Transaction(transaction).save();
-	return { transaction, validation };
+	locals.mempool.push(transaction);
+	MempoolTransaction.create(transaction);
+
+	return validation;
 };
 
 export const getTransaction = async hash => {

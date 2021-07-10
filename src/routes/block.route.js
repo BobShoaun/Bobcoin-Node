@@ -8,11 +8,12 @@ export const blocksRouter = io => {
 
 	function error(res, e) {
 		res.status(400).json(`${e}`);
+		console.log(e);
 	}
 
 	router.get("/:hash", async (req, res) => {
 		try {
-			res.send(await getBlock(req.params.hash));
+			res.send(await getBlock(req.app.locals, req.params.hash));
 		} catch (e) {
 			error(res, e);
 		}
@@ -29,8 +30,7 @@ export const blocksRouter = io => {
 	router.post("/", async (req, res) => {
 		try {
 			const block = req.body.block;
-			addBlock(block, io);
-			res.send(block);
+			res.send(await addBlock(req.app.locals, block, io));
 		} catch (e) {
 			error(res, e);
 		}

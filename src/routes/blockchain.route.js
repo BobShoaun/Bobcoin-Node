@@ -1,12 +1,6 @@
 import Express from "express";
 
-import {
-	getBlockchain,
-	getBlockchainInfo,
-	getBestBlock,
-	getBlockchainNew,
-	getHeadBlock,
-} from "../controllers/blockchain.controller.js";
+import { getBlockchain, getBlockchainNew } from "../controllers/blockchain.controller.js";
 
 export const blockchainRouter = io => {
 	const router = Express.Router();
@@ -31,16 +25,18 @@ export const blockchainRouter = io => {
 		try {
 			const limit = parseInt(req.query.limit);
 			const height = parseInt(req.query.height);
-			// const timestamp = parseInt(req.query.timestamp);
-			// res.send(await getBlockchainInfo(limit, height, timestamp));
-			res.send(await getBlockchainNew(limit, height));
+			res.send(await getBlockchainNew(req.app.locals, limit, height));
 		} catch (e) {
 			error(res, e);
 		}
 	});
 
 	router.get("/head", (req, res) => {
-		res.send(getHeadBlock());
+		res.send(req.app.locals.headBlock);
+	});
+
+	router.get("/unconfirmed", (req, res) => {
+		res.send(req.app.locals.unconfirmedBlocks);
 	});
 
 	return router;
