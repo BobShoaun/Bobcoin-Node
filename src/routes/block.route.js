@@ -1,6 +1,6 @@
 import Express from "express";
 
-import { mineGenesis, getBlock, getBlockInfo } from "../controllers/block.controller.js";
+import { getBlock, getBlockInfo } from "../controllers/block.controller.js";
 import { addBlock } from "../controllers/blockchain.controller.js";
 
 export const blocksRouter = io => {
@@ -13,7 +13,8 @@ export const blocksRouter = io => {
 
 	router.get("/:hash", async (req, res) => {
 		try {
-			res.send(await getBlock(req.app.locals, req.params.hash));
+			const { block } = await getBlock(req.app.locals, req.params.hash);
+			res.send(block);
 		} catch (e) {
 			error(res, e);
 		}
@@ -21,7 +22,8 @@ export const blocksRouter = io => {
 
 	router.get("/info/:hash", async (req, res) => {
 		try {
-			res.send(await getBlockInfo(req.params.hash));
+			const blockInfo = await getBlockInfo(req.app.locals, req.params.hash);
+			res.send(blockInfo);
 		} catch (e) {
 			error(res, e);
 		}
@@ -36,16 +38,16 @@ export const blocksRouter = io => {
 		}
 	});
 
-	router.post("/mine-genesis", async (req, res) => {
-		try {
-			const address = req.body.address;
-			const genesis = await mineGenesis(address);
-			io.sockets.emit("block", genesis);
-			res.json(genesis);
-		} catch (e) {
-			error(res, e);
-		}
-	});
+	// router.post("/mine-genesis", async (req, res) => {
+	// 	try {
+	// 		const address = req.body.address;
+	// 		const genesis = await mineGenesis(address);
+	// 		io.sockets.emit("block", genesis);
+	// 		res.json(genesis);
+	// 	} catch (e) {
+	// 		error(res, e);
+	// 	}
+	// });
 
 	return router;
 };

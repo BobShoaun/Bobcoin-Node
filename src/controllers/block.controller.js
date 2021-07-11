@@ -1,120 +1,83 @@
-import BlockCrypto from "blockcrypto";
+import { findTxOutput } from "./transaction.controller.js";
 
-import params from "../params.js";
-import Block from "../models/block.model.js";
-import Transaction from "../models/transaction.model.js";
+import { OrphanedBlock, MatureBlock } from "../models/index.js";
 
-import { getTransactionInfo } from "./transaction.controller.js";
+// export const mineGenesis = async address => {
+// 	const output = createOutput(address, params.initBlkReward);
+// 	const coinbase = createTransaction(params, [], [output]);
+// 	coinbase.hash = calculateTransactionHash(coinbase);
+// 	const genesis = mineGenesisBlock(params, [coinbase]);
 
-import {
-	OrphanedBlock,
-	MatureBlock,
-	UnconfirmedBlock,
-	MempoolTransaction,
-	Utxo,
-} from "../models/index.js";
-
-const {
-	mineGenesisBlock,
-	createBlockchain,
-	isBlockValidInBlockchain,
-	isBlockchainValid,
-	createTransaction,
-	calculateTransactionHash,
-	createOutput,
-	RESULT,
-	addBlock: addBlockToBlockchain,
-	findTXO,
-	bigIntToHex64,
-	calculateBlockReward,
-	calculateHashTarget,
-	getBlockConfirmations,
-} = BlockCrypto;
-
-export const mineGenesis = async address => {
-	const output = createOutput(address, params.initBlkReward);
-	const coinbase = createTransaction(params, [], [output]);
-	coinbase.hash = calculateTransactionHash(coinbase);
-	const genesis = mineGenesisBlock(params, [coinbase]);
-
-	await addBlock(genesis);
-	return genesis;
-};
+// 	await addBlock(genesis);
+// 	return genesis;
+// };
 
 export const getBlock = async (locals, hash) => {
 	let block = locals.unconfirmedBlocks.find(block => block.hash === hash);
-	if (block) return block;
-	block = await MatureBlock.findOne({ hash });
-	if (block) return block;
-	block = await OrphanedBlock.findOne({ hash });
-	if (block) return block;
+	if (block) return { block, status: "Unconfirmed" };
+	block = await MatureBlock.findOne({ hash }, { _id: false });
+	if (block) return { block, status: "Confirmed" };
+	block = await OrphanedBlock.findOne({ hash }, { _id: false });
+	if (block) return { block, status: "Orphaned" };
 	throw Error("cannot find block with hash: " + hash);
 };
 
-export const getBlockInfo = async hash => {
-	const block = await getBlock(hash);
-	const blockchain = createBlockchain(await Block.find().populate("transactions"));
-	const transactions = await Transaction.find();
+export const getBlockInfo = async (locals, hash) => {
+	const { block, status } = await getBlock(locals, hash);
 
-	const totalInput = block.transactions
-		.slice(1)
-		.reduce(
-			(total, tx) =>
-				total + tx.inputs.reduce((inT, input) => inT + findTXO(input, transactions).amount, 0),
-			0
-		);
+	const transactionsInfo = [];
 
-	const totalOutput = block.transactions
-		.slice(1)
-		.reduce((total, tx) => total + tx.outputs.reduce((outT, output) => outT + output.amount, 0), 0);
+	for (const transaction of block.transactions) {
+		const inputs = [];
+		const outputs = [];
 
-	const validation = isBlockValidInBlockchain(params, blockchain, block);
-	const isValid = validation.code === RESULT.VALID;
-	const fee = totalInput - totalOutput;
-	const confirmations = getBlockConfirmations(params, blockchain, block);
-	const hashTarget = bigIntToHex64(calculateHashTarget(params, block));
-	const reward = calculateBlockReward(params, block.height);
+		for (const input of transaction.inputs) {
+			const utxo = await findTxOutput(locals, input);
 
-	const transactionsInfo = await Promise.all(
-		block.transactions.map(async tx => await getTransactionInfo(tx.hash, block.hash))
-	);
+			inputs.push({
+				txHash: input.txHash,
+				outIndex: input.outIndex,
+				address: utxo.address,
+				amount: utxo.amount,
+				publicKey: input.publicKey,
+				signature: input.signature,
+			});
+		}
+
+		for (let i = 0; i < transaction.outputs.length; i++) {
+			const utxo = locals.utxos.find(
+				utxo => utxo.txHash === transaction.hash && utxo.outIndex === i
+			);
+			outputs.push({
+				address: transaction.outputs[i].address,
+				amount: transaction.outputs[i].amount,
+				spent: !utxo,
+			});
+		}
+
+		transactionsInfo.push({ transaction, inputs, outputs });
+	}
+
+	let confirmations = 0;
+
+	switch (status) {
+		case "Unconfirmed":
+			confirmations = locals.headBlock.height - block.height + 1; // TODO: not correct for forked blocks
+			break;
+		case "Confirmed":
+			confirmations = locals.headBlock.height - block.height + 1;
+			break;
+		case "Orphaned":
+			confirmations = 1;
+			break;
+		default:
+			confirmations = 0;
+	}
 
 	return {
 		block,
-		isValid,
-		validation,
 		transactionsInfo,
-		totalInput,
-		totalOutput,
-		fee,
 		confirmations,
-		hashTarget,
-		reward,
+		status,
 	};
-};
-
-export const addBlock = async (block, io) => {
-	const blockchain = createBlockchain(await Block.find().populate("transactions"));
-	addBlockToBlockchain(blockchain, block);
-
-	const validation = isBlockchainValid(params, blockchain, block);
-	const blockInfo = { block, validation, status: "Unconfirmed" };
-
-	if (validation.code !== RESULT.VALID)
-		// invalid block
-		return blockInfo;
-
-	block.transactions = await Promise.all(
-		block.transactions.map(
-			async tx =>
-				await Transaction.findOneAndUpdate({ hash: tx.hash }, tx, {
-					upsert: true,
-					new: true,
-				})
-		)
-	);
-	await new Block(block).save();
-
-	io.sockets.emit("block", blockInfo);
-	return blockInfo;
 };

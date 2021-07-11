@@ -1,6 +1,6 @@
 import Express from "express";
 import {
-	getTransactions,
+	getTransaction,
 	addTransaction,
 	getTransactionInfo,
 	getMempoolInfo,
@@ -14,9 +14,10 @@ export const transactionRouter = io => {
 		console.error(e);
 	}
 
-	router.get("/", async (req, res) => {
+	router.get("/:hash", async (req, res) => {
 		try {
-			res.send(await getTransactions());
+			const transaction = await getTransaction(req.app.locals, req.params.hash);
+			res.send(transaction);
 		} catch (e) {
 			error(res, e);
 		}
@@ -24,8 +25,8 @@ export const transactionRouter = io => {
 
 	router.get("/info/:hash", async (req, res) => {
 		try {
-			const block = req.query.block;
-			res.send(await getTransactionInfo(req.params.hash, block));
+			const info = await getTransactionInfo(req.app.locals, req.params.hash, req.query.block);
+			res.send(info);
 		} catch (e) {
 			error(res, e);
 		}

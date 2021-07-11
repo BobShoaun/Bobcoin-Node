@@ -1,6 +1,7 @@
 import { Server } from "socket.io";
+import { getMempoolInfo } from "./controllers/transaction.controller.js";
 
-export const socket = server => {
+export const socket = (server, locals) => {
 	const io = new Server(server, {
 		cors: {
 			origin: "*",
@@ -33,6 +34,12 @@ export const socket = server => {
 		// });
 
 		console.log("a peer connected");
+
+		socket.emit("block", {
+			headBlock: locals.headBlock,
+			mempool: getMempoolInfo(locals),
+			unconfirmedBlocks: locals.unconfirmedBlocks,
+		});
 	});
 
 	return io;

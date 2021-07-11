@@ -26,8 +26,15 @@ const app = Express();
 const server = http.createServer(app);
 
 app.get("/", (req, res) => {
-	const message = `<h2>Bobcoin node: running on ${network}</h2>
-  <h4>Time since last start: ${new Date().toLocaleString()}</h4>`;
+	const message = `
+  <h2>Bobcoin Node</h2>
+  <pre>Network: ${network}</pre>
+  <pre>Parameters: ${JSON.stringify(params, null, 2)}</pre>
+  <pre>Head block: ${JSON.stringify(req.app.locals.headBlock, null, 2)}</pre>
+  <pre>Unconfirmed blocks: ${JSON.stringify(req.app.locals.unconfirmedBlocks, null, 2)}</pre>
+  <pre>Mempool: ${JSON.stringify(req.app.locals.mempool, null, 2)}</pre>
+  <pre>Utxos: ${JSON.stringify(req.app.locals.utxos, null, 2)}</pre>
+  `;
 	res.send(message);
 });
 
@@ -57,7 +64,7 @@ server.listen(port, () => {
 // process.on("uncaughtException", exit.bind(null));
 
 mongodb();
-const io = socket(server);
+const io = socket(server, app.locals);
 
 app.use(Express.json());
 app.use(Express.urlencoded({ extended: true }));

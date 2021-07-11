@@ -1,6 +1,6 @@
 import Express from "express";
 
-import { getBlockchain, getBlockchainNew } from "../controllers/blockchain.controller.js";
+import { getBlockchainInfo } from "../controllers/blockchain.controller.js";
 
 export const blockchainRouter = io => {
 	const router = Express.Router();
@@ -12,10 +12,10 @@ export const blockchainRouter = io => {
 
 	router.get("/", async (req, res) => {
 		try {
-			const limit = parseInt(req.query.limit);
-			const height = parseInt(req.query.height);
-			const timestamp = parseInt(req.query.timestamp) || null;
-			res.send(await getBlockchain(limit, height, timestamp));
+			// const limit = parseInt(req.query.limit);
+			// const height = parseInt(req.query.height);
+			// const timestamp = parseInt(req.query.timestamp) || null;
+			// res.send(await getBlockchain(limit, height, timestamp));
 		} catch (e) {
 			error(res, e);
 		}
@@ -25,7 +25,7 @@ export const blockchainRouter = io => {
 		try {
 			const limit = parseInt(req.query.limit);
 			const height = parseInt(req.query.height);
-			res.send(await getBlockchainNew(req.app.locals, limit, height));
+			res.send(await getBlockchainInfo(req.app.locals, limit, height));
 		} catch (e) {
 			error(res, e);
 		}

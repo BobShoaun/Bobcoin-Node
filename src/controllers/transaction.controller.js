@@ -1,58 +1,118 @@
+import { OrphanedBlock, MatureBlock, MempoolTransaction } from "../models/index.js";
+
 import BlockCrypto from "blockcrypto";
+const { RESULT } = BlockCrypto;
 
-import params from "../params.js";
-import Transaction from "../models/transaction.model.js";
-import Block from "../models/block.model.js";
+export const getTransaction = async (locals, hash) => {
+	let transaction = locals.mempool.find(tx => tx.hash === hash);
+	if (transaction) return transaction;
 
-import { MempoolTransaction } from "../models/index.js";
+	let block = locals.unconfirmedBlocks.find(block =>
+		block.transactions.some(tx => tx.hash === hash)
+	);
+	if (block) return block.transactions.find(tx => tx.hash === hash);
 
-const {
-	isTransactionValid,
-	RESULT,
-	calculateMempool,
-	getHighestValidBlock,
-	createBlockchain,
-	findTXO,
-	isCoinbaseTxValid,
-	getBlockConfirmations,
-	calculateUTXOSet,
-	calculateMempoolUTXOSet,
-	createInput,
-	createOutput,
-	signTransaction,
-	calculateTransactionHash,
-} = BlockCrypto;
+	block = await MatureBlock.findOne({ "transactions.hash": hash }, { _id: false });
+	if (block) return block.transactions.find(tx => tx.hash === hash);
 
-export async function getTransactions() {
-	return await Transaction.find();
-}
+	block = await OrphanedBlock.findOne({ "transactions.hash": hash }, { _id: false });
+	if (block) return block.transactions.find(tx => tx.hash === hash);
 
-const getMempoolTxInfo = (transaction, transactions) => {
-	const inputInfo = transaction.inputs.map(input => {
-		const txo = findTXO(input, transactions);
-		return { address: txo.address, amount: txo.amount };
+	throw Error("cannot find transaction with hash: " + hash);
+};
+
+export const findTxOutput = async (locals, input) => {
+	let utxo = null;
+
+	// find tx in unconfirmedBlocks
+	outer: for (const unconfirmedBlock of locals.unconfirmedBlocks) {
+		for (const tx of unconfirmedBlock.transactions) {
+			if (tx.hash !== input.hash) continue;
+			utxo = tx.outputs[input.outIndex];
+			break outer;
+		}
+	}
+
+	if (utxo) return utxo;
+
+	const block = await MatureBlock.findOne({ "transactions.hash": input.txHash });
+	return block.transactions.find(tx => tx.hash === input.txHash).outputs[input.outIndex];
+};
+
+const getTxInfoMempool = (locals, hash) => {
+	let transaction = locals.mempool.find(tx => tx.hash === hash);
+	if (!transaction) return null;
+	const inputs = transaction.inputs.map(input => {
+		const utxo = locals.utxos.find(
+			utxo => utxo.txHash === input.txHash && utxo.outIndex === input.outIndex
+		);
+		return {
+			txHash: utxo.txHash,
+			outIndex: utxo.outIndex,
+			address: utxo.address,
+			amount: utxo.amount,
+			publicKey: input.publicKey,
+			signature: input.signature,
+		};
 	});
-	const totalInput = inputInfo.reduce((total, info) => total + info.amount, 0);
+	const outputs = transaction.outputs.map(output => ({
+		address: output.address,
+		amount: output.amount,
+		spent: false,
+	}));
+	return { transaction, inputs, outputs, status: "Mempool" };
+};
 
-	const totalOutput = transaction.outputs.reduce((total, output) => total + output.amount, 0);
-	const fee = totalInput - totalOutput;
-	const validation = isTransactionValid(params, transactions, transaction);
+const getTxInfo = async (locals, block, hash, status) => {
+	const transaction = block.transactions.find(tx => tx.hash === hash);
 
-	// const headBlock = getHighestValidBlock(params, blockchain);
-	// const utxos = calculateUTXOSet(blockchain, headBlock);
-	const outputSpent = transaction.outputs.map(() => false);
+	const inputs = [];
+	const outputs = [];
 
-	return {
-		transaction,
-		validation,
-		totalInput,
-		totalOutput,
-		fee,
-		isCoinbase: false,
-		confirmations: 0,
-		inputInfo,
-		outputSpent,
-	};
+	for (const input of transaction.inputs) {
+		const utxo = await findTxOutput(locals, input);
+		inputs.push({
+			txHash: input.txHash,
+			outIndex: input.outIndex,
+			address: utxo.address,
+			amount: utxo.amount,
+			publicKey: input.publicKey,
+			signature: input.signature,
+		});
+	}
+
+	for (let i = 0; i < transaction.outputs.length; i++) {
+		const utxo = locals.utxos.find(utxo => utxo.txHash === transaction.hash && utxo.outIndex === i);
+		outputs.push({
+			address: transaction.outputs[i].address,
+			amount: transaction.outputs[i].amount,
+			spent: !utxo,
+		});
+	}
+
+	return { transaction, block, inputs, outputs, status };
+};
+
+export const getTransactionInfo = async (locals, hash) => {
+	// check if tx is in mempool
+	let info = getTxInfoMempool(locals, hash);
+	if (info) return info;
+
+	// check if tx is in unconfirmed blocks
+	let block = locals.unconfirmedBlocks.find(block =>
+		block.transactions.some(tx => tx.hash === hash)
+	);
+	if (block) return getTxInfo(locals, block, hash, "Unconfirmed");
+
+	// check if tx is in mature blocks
+	block = await MatureBlock.findOne({ "transactions.hash": hash }, { _id: false });
+	if (block) return getTxInfo(locals, block, hash, "Confirmed");
+
+	// check if tx is orphaned
+	block = await OrphanedBlock.findOne({ "transactions.hash": hash }, { _id: false });
+	if (block) return getTxInfo(locals, block, hash, "Orphaned");
+
+	throw Error("cannot find transaction with hash: " + hash);
 };
 
 export const getMempoolInfo = locals =>
@@ -71,9 +131,16 @@ export const getMempoolInfo = locals =>
 			};
 		});
 
+		const outputs = transaction.outputs.map(output => ({
+			address: output.address,
+			amount: output.amount,
+			spent: false,
+		}));
+
 		return {
 			transaction,
 			inputs,
+			outputs,
 		};
 	});
 
@@ -87,66 +154,4 @@ export const addTransaction = (locals, transaction) => {
 	MempoolTransaction.create(transaction);
 
 	return validation;
-};
-
-export const getTransaction = async hash => {
-	const transaction = await Transaction.findOne({ hash: hash });
-	if (!transaction) throw Error("cannot find transaction with hash: " + hash);
-	return transaction;
-};
-
-export const getTransactionInfo = async (hash, blockHash) => {
-	const transaction = await getTransaction(hash);
-	const transactions = await getTransactions();
-	const blockchain = createBlockchain(await Block.find().populate("transactions"));
-
-	const inputInfo = transaction.inputs.map(input => {
-		const txo = findTXO(input, transactions);
-		return { address: txo.address, amount: txo.amount };
-	});
-	const totalInput = inputInfo.reduce((total, info) => total + info.amount, 0);
-
-	const totalOutput = transaction.outputs.reduce((total, output) => total + output.amount, 0);
-	const fee = totalInput - totalOutput;
-	const isCoinbase = transaction.inputs.length === 0 && transaction.outputs.length === 1;
-
-	// TODO: find from best chain not entire blockchain, or not?
-	const block =
-		blockchain.find(block => block.hash === blockHash) ??
-		blockchain.find(block => block.transactions.some(tx => tx.hash === hash));
-	const confirmations = block ? getBlockConfirmations(params, blockchain, block) : 0;
-
-	const validation = isCoinbase
-		? isCoinbaseTxValid(params, transaction)
-		: isTransactionValid(params, transactions, transaction);
-
-	const isValid = validation.code === RESULT.VALID;
-
-	const headBlock = getHighestValidBlock(params, blockchain);
-	const utxos = calculateUTXOSet(blockchain, headBlock);
-
-	const outputSpent = transaction.outputs.map(
-		(output, index) =>
-			!utxos.some(
-				utxo =>
-					utxo.address === output.address &&
-					utxo.amount === output.amount &&
-					utxo.txHash === transaction.hash &&
-					utxo.outIndex === index
-			)
-	);
-
-	return {
-		transaction,
-		isValid,
-		validation,
-		block,
-		totalInput,
-		totalOutput,
-		fee,
-		isCoinbase,
-		confirmations,
-		inputInfo,
-		outputSpent,
-	};
 };
