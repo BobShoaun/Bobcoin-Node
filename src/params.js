@@ -23,7 +23,7 @@ const testnetParams = {
 	name: "Bobcoin",
 	symbol: "XBC",
 	coin: 100_000_000, // amounts are stored as the smallest unit, this is how many of the smallest unit that amounts to 1 coin.
-	version: "0.0.1",
+	version: "1.0.0",
 	addressPre: "06",
 	checksumLen: 4,
 	initBlkReward: 4096 * 100_000_000, // in coins
@@ -34,7 +34,7 @@ const testnetParams = {
 	diffRecalcHeight: 10, // in block height
 	minDiffCorrFact: 1 / 4,
 	maxDiffCorrFact: 4,
-	blkMaturity: 5, // number of blocks that has to be mined on top (confirmations + 1) to be considered matured
+	blkMaturity: 6, // number of blocks that has to be mined on top (confirmations + 1) to be considered matured
 	hardCap: 819_200_000 * 100_000_000, // upper bound to amt of coins in circulation
 };
 

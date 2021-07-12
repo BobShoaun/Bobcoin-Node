@@ -3,15 +3,11 @@ import BlockCrypto from "blockcrypto";
 import params from "../params.js";
 
 const {
-	createBlockchain,
-	getTransactionFees,
 	createOutput,
 	calculateBlockReward,
 	createTransaction,
 	calculateTransactionHash,
 	calculateHashTarget,
-	isBlockValidInBlockchain,
-	addBlock,
 	bigIntToHex64,
 	calculateMerkleRoot,
 	RESULT,
@@ -33,7 +29,7 @@ export const createCandidateBlock = async (locals, previousBlock, transactions, 
 			const utxo = locals.utxos.find(
 				utxo => utxo.txHash === input.txHash && utxo.outInput === input.outIndex
 			);
-			if (!utxo) throw Error("Utxo does not exist");
+			if (!utxo) throw Error("Fatal: Utxo does not exist");
 			totalInput += utxo.amount;
 		}
 		for (const output of tx.outputs) totalOutput += output.amount;
@@ -50,16 +46,13 @@ export const createCandidateBlock = async (locals, previousBlock, transactions, 
 	return { block, target, validation };
 };
 
-const createBlock = (params, previousBlock, transactions, difficulty) => {
-	const block = {
-		height: previousBlock.height + 1,
-		previousHash: previousBlock.hash,
-		transactions,
-		timestamp: Date.now(),
-		version: params.version,
-		difficulty,
-		merkleRoot: calculateMerkleRoot(transactions.map(tx => tx.hash)),
-		nonce: 0,
-	};
-	return block;
-};
+const createBlock = (params, previousBlock, transactions, difficulty) => ({
+	height: previousBlock.height + 1,
+	previousHash: previousBlock.hash,
+	transactions,
+	timestamp: Date.now(),
+	version: params.version,
+	difficulty,
+	merkleRoot: calculateMerkleRoot(transactions.map(tx => tx.hash)),
+	nonce: 0,
+});

@@ -1,5 +1,7 @@
 import { OrphanedBlock, MatureBlock, MempoolTransaction } from "../models/index.js";
 
+import { validatedTransaction } from "./blockcrypto.js";
+
 import BlockCrypto from "blockcrypto";
 const { RESULT } = BlockCrypto;
 
@@ -145,10 +147,8 @@ export const getMempoolInfo = locals =>
 	});
 
 export const addTransaction = (locals, transaction) => {
-	// TODO: validation transaction
-	const validation = { code: RESULT.VALID };
-
-	if (validation.code !== RESULT.VALID) throw Error("Rejected: transaction is invalid");
+	const validation = validatedTransaction(locals, transaction);
+	if (validation.code !== RESULT.VALID) return validation;
 
 	locals.mempool.push(transaction);
 	MempoolTransaction.create(transaction);

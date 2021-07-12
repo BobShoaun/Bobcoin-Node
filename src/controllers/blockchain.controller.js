@@ -12,6 +12,8 @@ import {
 import { cleanBlock } from "./migrate.controller.js";
 import { getMempoolInfo } from "./transaction.controller.js";
 
+import { validateBlock } from "./blockcrypto.js";
+
 const { RESULT } = BlockCrypto;
 
 const insertUnconfirmedBlock = (locals, block) => {
@@ -96,7 +98,7 @@ const updateMempoolAndUtxos = (locals, block) => {
 				}
 			}
 			// utxo does not exist
-			throw Error("Attempt to spend utxo that doesn't exist");
+			throw Error("Fatal: Attempt to spend utxo that doesn't exist");
 		}
 
 		// insert new utxos
@@ -143,12 +145,8 @@ const updateDifficulty = async (locals, previousBlock) => {
 };
 
 export const addBlock = async (locals, block, io) => {
-	// check if mining from unconfirmed block
-	const previousBlock = locals.unconfirmedBlocks.find(b => b.hash === block.previousHash);
-	if (!previousBlock) throw Error("Previous block not within unconfirmed pool.");
-
-	const validation = validateBlock(block);
-	if (validation.code !== RESULT.VALID) throw Error("Rejected: Block is invalid");
+	const validation = validateBlock(locals, block);
+	if (validation.code !== RESULT.VALID) return validation;
 
 	const isNewHead = block.height === locals.headBlock.height + 1;
 	const isReorg = previousBlock !== locals.headBlock;
@@ -202,10 +200,6 @@ export const saveUnconfirmedBlocks = async locals => {
 	// dump unconfirmed blocks into persistent
 	await UnconfirmedBlock.deleteMany();
 	await UnconfirmedBlock.insertMany(locals.unconfirmedBlocks);
-};
-
-const validateBlock = block => {
-	return { code: RESULT.VALID };
 };
 
 export const getBlockchainInfo = async (locals, limit, height) => {
