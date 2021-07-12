@@ -19,7 +19,7 @@
 	},
 	"homepage": "https://github.com/BobShoaun/Bobcoin-Backend-Node#readme",
 	"dependencies": {
-		"blockcrypto": "^3.0.6",
+		"blockcrypto": "^3.0.7",
 		"cors": "^2.8.5",
 		"dotenv": "^8.2.0",
 		"express": "^4.17.1",

@@ -2,6 +2,7 @@ import BlockCrypto from "blockcrypto";
 
 import params from "../params.js";
 import Block from "../models/block.model.js";
+import Transaction from "../models/transaction.model.js";
 import {
 	OrphanedBlock,
 	MatureBlock,
@@ -31,12 +32,12 @@ export const cleanBlock = block => ({
 	})),
 });
 
-export const resetMigration = () => {
-	OrphanedBlock.deleteMany().then();
-	MatureBlock.deleteMany().then();
-	UnconfirmedBlock.deleteMany().then();
-	MempoolTransaction.deleteMany().then();
-	Utxo.deleteMany().then();
+export const resetMigration = async () => {
+	await OrphanedBlock.deleteMany();
+	await MatureBlock.deleteMany();
+	await UnconfirmedBlock.deleteMany();
+	await MempoolTransaction.deleteMany();
+	await Utxo.deleteMany();
 };
 
 export const phase2 = async () => {
@@ -45,15 +46,15 @@ export const phase2 = async () => {
 
 	for (let i = 0; i < params.blkMaturity - 1; i++) {
 		const headBlock = blockchain.pop();
-		MatureBlock.deleteOne({ _id: headBlock._id }).then();
-		new UnconfirmedBlock(cleanBlock(headBlock)).save();
+		await MatureBlock.deleteOne({ _id: headBlock._id });
+		await new UnconfirmedBlock(cleanBlock(headBlock)).save();
 	}
 	const headBlock = getHighestValidBlock(params, blockchain);
 	const utxos = calculateUTXOSet(blockchain, headBlock);
 	const mempool = calculateMempool(blockchain, headBlock, transactions);
 
-	MempoolTransaction.insertMany(mempool);
-	Utxo.insertMany(utxos);
+	await MempoolTransaction.insertMany(mempool);
+	await Utxo.insertMany(utxos);
 };
 
 export const phase1 = async () => {
@@ -61,6 +62,6 @@ export const phase1 = async () => {
 	let bestchain = getBestChain(params, blockchain);
 
 	const orphanedBlocks = blockchain.filter(block => !bestchain.some(b => b.hash === block.hash));
-	OrphanedBlock.insertMany(orphanedBlocks.map(cleanBlock));
-	MatureBlock.insertMany(bestchain.map(cleanBlock));
+	await OrphanedBlock.insertMany(orphanedBlocks.map(cleanBlock));
+	await MatureBlock.insertMany(bestchain.map(cleanBlock));
 };

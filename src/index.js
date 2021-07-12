@@ -44,11 +44,11 @@ app.locals.mempool = []; // mempool as of headblock, recalc with reorg
 app.locals.utxos = []; // utxos as of headblock, recalc with reorg
 app.locals.difficulty = params.initBlkDiff;
 
-server.listen(port, () => {
+server.listen(port, async () => {
 	console.log("Server listening on port: ", port);
-	// resetMigration();
-	// phase1();
-	// phase2();
+	// await resetMigration();
+	// await phase1();
+	// await phase2();
 	setupUnconfirmedBlocks(app.locals);
 });
 
@@ -71,7 +71,7 @@ app.use(Express.urlencoded({ extended: true }));
 app.use(cors());
 
 app.use("/block", blocksRouter(io));
-app.use("/blockchain", blockchainRouter(io));
+app.use("/blockchain", blockchainRouter());
 app.use("/transaction", transactionRouter(io));
 app.use("/consensus", consensusRouter());
 app.use("/address", addressRouter());

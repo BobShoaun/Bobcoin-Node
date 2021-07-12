@@ -2,6 +2,8 @@ import BlockCrypto from "blockcrypto";
 
 import params from "../params.js";
 
+import { validateCandidateBlock } from "./blockcrypto.js";
+
 const {
 	createOutput,
 	calculateBlockReward,
@@ -20,19 +22,16 @@ export const getMiningInfo = locals => ({
 });
 
 export const createCandidateBlock = async (locals, previousBlock, transactions, miner) => {
-	// TODO: validate first
-
 	let totalInput = 0;
 	let totalOutput = 0;
-	for (const tx of transactions) {
-		for (const input of tx.inputs) {
+	for (const transaction of transactions) {
+		for (const input of transaction.inputs) {
 			const utxo = locals.utxos.find(
-				utxo => utxo.txHash === input.txHash && utxo.outInput === input.outIndex
+				utxo => utxo.txHash === input.txHash && utxo.outIndex === input.outIndex
 			);
-			if (!utxo) throw Error("Fatal: Utxo does not exist");
 			totalInput += utxo.amount;
 		}
-		for (const output of tx.outputs) totalOutput += output.amount;
+		for (const output of transaction.outputs) totalOutput += output.amount;
 	}
 
 	const fees = totalInput - totalOutput;
@@ -42,7 +41,7 @@ export const createCandidateBlock = async (locals, previousBlock, transactions, 
 	const block = createBlock(params, previousBlock, [coinbase, ...transactions], locals.difficulty);
 	const target = bigIntToHex64(calculateHashTarget(params, block));
 
-	const validation = { code: RESULT.VALID };
+	const validation = validateCandidateBlock(locals, block);
 	return { block, target, validation };
 };
 

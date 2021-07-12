@@ -29,7 +29,7 @@ export const findTxOutput = async (locals, input) => {
 	// find tx in unconfirmedBlocks
 	outer: for (const unconfirmedBlock of locals.unconfirmedBlocks) {
 		for (const tx of unconfirmedBlock.transactions) {
-			if (tx.hash !== input.hash) continue;
+			if (tx.hash !== input.txHash) continue;
 			utxo = tx.outputs[input.outIndex];
 			break outer;
 		}
@@ -117,41 +117,56 @@ export const getTransactionInfo = async (locals, hash) => {
 	throw Error("cannot find transaction with hash: " + hash);
 };
 
-export const getMempoolInfo = locals =>
-	locals.mempool.map(transaction => {
-		const inputs = transaction.inputs.map(input => {
+export const getMempoolInfo = locals => {
+	const mempoolInfo = [];
+	const invalidMempool = [];
+	outer: for (const transaction of locals.mempool) {
+		const inputs = [];
+		for (const input of transaction.inputs) {
 			const utxo = locals.utxos.find(
 				utxo => utxo.txHash === input.txHash && utxo.outIndex === input.outIndex
 			);
-			return {
+			if (!utxo) {
+				invalidMempool.push(transaction);
+				continue outer;
+			}
+			inputs.push({
 				txHash: utxo.txHash,
 				outIndex: utxo.outIndex,
 				address: utxo.address,
 				amount: utxo.amount,
 				publicKey: input.publicKey,
 				signature: input.signature,
-			};
-		});
+			});
+		}
 
 		const outputs = transaction.outputs.map(output => ({
 			address: output.address,
 			amount: output.amount,
 			spent: false,
 		}));
+		mempoolInfo.push({ transaction, inputs, outputs });
+	}
 
-		return {
-			transaction,
-			inputs,
-			outputs,
-		};
-	});
+	if (invalidMempool.length)
+		console.log(
+			"Mempool consist of txs that are no longer valid",
+			invalidMempool.map(tx => tx.hash)
+		);
+	return mempoolInfo;
+};
 
-export const addTransaction = (locals, transaction) => {
+export const addTransaction = (locals, transaction, io) => {
 	const validation = validatedTransaction(locals, transaction);
 	if (validation.code !== RESULT.VALID) return validation;
 
 	locals.mempool.push(transaction);
 	MempoolTransaction.create(transaction);
+
+	// broadcast transation to other nodes and all clients.
+	io.emit("mempool", {
+		mempool: getMempoolInfo(locals),
+	});
 
 	return validation;
 };

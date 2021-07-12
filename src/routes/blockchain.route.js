@@ -2,7 +2,7 @@ import Express from "express";
 
 import { getBlockchainInfo } from "../controllers/blockchain.controller.js";
 
-export const blockchainRouter = io => {
+export const blockchainRouter = () => {
 	const router = Express.Router();
 
 	const error = (res, e) => {
@@ -12,10 +12,6 @@ export const blockchainRouter = io => {
 
 	router.get("/", async (req, res) => {
 		try {
-			// const limit = parseInt(req.query.limit);
-			// const height = parseInt(req.query.height);
-			// const timestamp = parseInt(req.query.timestamp) || null;
-			// res.send(await getBlockchain(limit, height, timestamp));
 		} catch (e) {
 			error(res, e);
 		}

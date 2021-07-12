@@ -51,7 +51,7 @@ export const transactionRouter = io => {
 	router.post("/", (req, res) => {
 		try {
 			const transaction = req.body.transaction;
-			const validation = addTransaction(req.app.locals, transaction);
+			const validation = addTransaction(req.app.locals, transaction, io);
 			res.send(validation);
 		} catch (e) {
 			error(res, e);

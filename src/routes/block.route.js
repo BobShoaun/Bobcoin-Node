@@ -32,7 +32,8 @@ export const blocksRouter = io => {
 	router.post("/", async (req, res) => {
 		try {
 			const block = req.body.block;
-			res.send(await addBlock(req.app.locals, block, io));
+			const validation = await addBlock(req.app.locals, block, io);
+			res.send(validation);
 		} catch (e) {
 			error(res, e);
 		}

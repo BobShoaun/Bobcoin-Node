@@ -148,6 +148,7 @@ export const addBlock = async (locals, block, io) => {
 	const validation = validateBlock(locals, block);
 	if (validation.code !== RESULT.VALID) return validation;
 
+	const previousBlock = locals.unconfirmedBlocks.find(b => b.hash === block.previousHash);
 	const isNewHead = block.height === locals.headBlock.height + 1;
 	const isReorg = previousBlock !== locals.headBlock;
 
@@ -171,8 +172,8 @@ export const addBlock = async (locals, block, io) => {
 	// broadcast block to other nodes and all clients.
 	io.emit("block", {
 		headBlock: locals.headBlock,
-		mempool: getMempoolInfo(locals),
 		unconfirmedBlocks: locals.unconfirmedBlocks,
+		mempool: getMempoolInfo(locals),
 	});
 
 	return validation;

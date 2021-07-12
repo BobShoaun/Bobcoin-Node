@@ -1,5 +1,6 @@
 import { Server } from "socket.io";
 import { getMempoolInfo } from "./controllers/transaction.controller.js";
+import params from "./params.js";
 
 export const socket = (server, locals) => {
 	const io = new Server(server, {
@@ -35,10 +36,11 @@ export const socket = (server, locals) => {
 
 		console.log("a peer connected");
 
-		socket.emit("block", {
+		socket.emit("initialize", {
+			params,
 			headBlock: locals.headBlock,
-			mempool: getMempoolInfo(locals),
 			unconfirmedBlocks: locals.unconfirmedBlocks,
+			mempool: getMempoolInfo(locals),
 		});
 	});
 
