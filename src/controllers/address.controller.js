@@ -59,3 +59,33 @@ export const getAddressInfo = async (locals, address) => {
 
 	return { utxos, transactionsInfo };
 };
+
+export const getWalletInfo = async (locals, addresses) => {
+	const utxos = locals.utxos.filter(utxo => addresses.includes(utxo.address));
+
+	const transactionsInfo = [];
+
+	for (const block of locals.unconfirmedBlocks) {
+		for (const tx of block.transactions) {
+			if (tx.outputs.some(output => addresses.includes(output.address))) {
+				transactionsInfo.push(await getTxInfo(locals, tx));
+				continue;
+			}
+		}
+	}
+
+	const blocks = await MatureBlock.find(
+		{ "transactions.outputs.address": { $in: addresses } },
+		{ _id: false }
+	);
+	for (const block of blocks) {
+		for (const tx of block.transactions) {
+			if (tx.outputs.some(output => addresses.includes(output.address))) {
+				transactionsInfo.push(await getTxInfo(locals, tx));
+				continue;
+			}
+		}
+	}
+
+	return { utxos, transactionsInfo };
+};
