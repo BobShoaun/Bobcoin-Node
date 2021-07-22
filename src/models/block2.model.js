@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const transactionSchema = new mongoose.Schema(
 	{
-		hash: { type: String, required: true, unique: true },
+		hash: { type: String, required: true },
 		timestamp: { type: Number, required: true },
 		version: { type: String, required: true },
 		inputs: [

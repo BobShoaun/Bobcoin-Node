@@ -67,9 +67,6 @@ export const getBlockInfo = async (locals, hash) => {
 		case "Confirmed":
 			confirmations = locals.headBlock.height - block.height + 1;
 			break;
-		case "Orphaned":
-			confirmations = 1;
-			break;
 		default:
 			confirmations = 0;
 	}

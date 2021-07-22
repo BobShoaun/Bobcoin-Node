@@ -92,7 +92,20 @@ const getTxInfo = async (locals, block, hash, status) => {
 		});
 	}
 
-	return { transaction, block, inputs, outputs, status };
+	let confirmations = 0;
+
+	switch (status) {
+		case "Unconfirmed":
+			confirmations = locals.headBlock.height - block.height + 1; // TODO: not correct for forked blocks
+			break;
+		case "Confirmed":
+			confirmations = locals.headBlock.height - block.height + 1;
+			break;
+		default:
+			confirmations = 0;
+	}
+
+	return { transaction, block, inputs, outputs, status, confirmations };
 };
 
 export const getTransactionInfo = async (locals, hash) => {

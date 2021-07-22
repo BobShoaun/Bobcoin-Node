@@ -38,7 +38,11 @@ export const getAddressInfo = async (locals, address) => {
 	for (const block of locals.unconfirmedBlocks) {
 		for (const tx of block.transactions) {
 			if (tx.outputs.some(output => output.address === address)) {
-				transactionsInfo.push(await getTxInfo(locals, tx));
+				const info = await getTxInfo(locals, tx);
+				transactionsInfo.push({
+					...info,
+					confirmations: locals.headBlock.height - block.height + 1,
+				});
 				continue;
 			}
 		}
@@ -51,7 +55,11 @@ export const getAddressInfo = async (locals, address) => {
 	for (const block of blocks) {
 		for (const tx of block.transactions) {
 			if (tx.outputs.some(output => output.address === address)) {
-				transactionsInfo.push(await getTxInfo(locals, tx));
+				const info = await getTxInfo(locals, tx);
+				transactionsInfo.push({
+					...info,
+					confirmations: locals.headBlock.height - block.height + 1,
+				});
 				continue;
 			}
 		}
@@ -68,7 +76,11 @@ export const getWalletInfo = async (locals, addresses) => {
 	for (const block of locals.unconfirmedBlocks) {
 		for (const tx of block.transactions) {
 			if (tx.outputs.some(output => addresses.includes(output.address))) {
-				transactionsInfo.push(await getTxInfo(locals, tx));
+				const info = await getTxInfo(locals, tx);
+				transactionsInfo.push({
+					...info,
+					confirmations: locals.headBlock.height - block.height + 1,
+				});
 				continue;
 			}
 		}
@@ -81,7 +93,11 @@ export const getWalletInfo = async (locals, addresses) => {
 	for (const block of blocks) {
 		for (const tx of block.transactions) {
 			if (tx.outputs.some(output => addresses.includes(output.address))) {
-				transactionsInfo.push(await getTxInfo(locals, tx));
+				const info = await getTxInfo(locals, tx);
+				transactionsInfo.push({
+					...info,
+					confirmations: locals.headBlock.height - block.height + 1,
+				});
 				continue;
 			}
 		}

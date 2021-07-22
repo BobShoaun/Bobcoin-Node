@@ -37,7 +37,7 @@ const testnetParams = {
 	blkMaturity: 6, // number of blocks that has to be mined on top (confirmations + 1) to be considered matured
 	hardCap: 819_200_000 * 100_000_000, // upper bound to amt of coins in circulation
 	derivPurpose: 44, // bip 44
-	derivCoinType: 8888, // coin type for mainnet bobcoin
+	derivCoinType: 1, // coin type for all test nets as of bip44 spec
 };
 
 const mainnetParams = {
@@ -55,10 +55,10 @@ const mainnetParams = {
 	diffRecalcHeight: 50, // in block height
 	minDiffCorrFact: 1 / 4,
 	maxDiffCorrFact: 4,
-	blkMaturity: 5, // number of blocks that has to be mined on top (confirmations + 1) to be considered matured
+	blkMaturity: 6, // number of blocks that has to be mined on top (confirmations + 1) to be considered matured
 	hardCap: 10_240_000 * 100_000_000, // upper bound to amt of coins in circulation
 	derivPurpose: 44, // bip 44
-	derivCoinType: 1, // coin type for all test nets as of bip44 spec
+	derivCoinType: 8888, // coin type for mainnet bobcoin
 };
 
 const params = network === "mainnet" ? mainnetParams : testnetParams;
