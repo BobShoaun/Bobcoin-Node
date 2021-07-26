@@ -7,6 +7,7 @@ import {
 	UnconfirmedBlock,
 	MempoolTransaction,
 	Utxo,
+	TransactionInfo,
 } from "../models/index.js";
 
 import { cleanBlock } from "./migrate.controller.js";
@@ -25,13 +26,52 @@ const insertUnconfirmedBlock = (locals, block) => {
 	}
 };
 
+// insert to tx info
+const insertTransactionInfos = async block => {
+	const transactionInfos = [
+		{
+			...block.transactions[0],
+			blockHash: block.hash,
+			blockHeight: block.height,
+			status: "unconfirmed",
+		},
+	];
+
+	for (let i = 1; i < block.transactions.length; i++) {
+		const transaction = block.transactions[i];
+		const inputs = await Promise.all(
+			transaction.inputs.map(async input => {
+				const inputTx = await TransactionInfo.findOne({ hash: input.txHash });
+
+				await TransactionInfo.updateMany(
+					{ hash: input.txHash },
+					{ $set: { [`outputs.${input.outIndex}.txHash`]: transaction.hash } }
+				);
+
+				if (!inputTx) throw Error("Fatal: inputTx not found!");
+				const { address, amount } = inputTx.outputs[input.outIndex];
+				return { ...input, address, amount };
+			})
+		);
+		transactionInfos.push({
+			...transaction,
+			blockHash: block.hash,
+			blockHeight: block.height,
+			status: "unconfirmed",
+			inputs,
+		});
+	}
+
+	await TransactionInfo.insertMany(transactionInfos);
+};
+
 // called after head block is updated
 const removeConfirmedBlocks = async locals => {
 	// remove confirmed blocks from pool and add to persistent db
 	const confirmedHeight = locals.headBlock.height - params.blkMaturity + 1;
 	let lastBlock = locals.headBlock;
 	let currentHash = locals.headBlock.previousHash;
-	const orphanedIndices = [];
+	const orphanedBlocks = [];
 	for (let i = 0; i < locals.unconfirmedBlocks.length; i++) {
 		if (locals.unconfirmedBlocks[i].hash === currentHash) {
 			lastBlock = locals.unconfirmedBlocks[i];
@@ -39,22 +79,36 @@ const removeConfirmedBlocks = async locals => {
 			continue;
 		}
 		// for orphaned blocks
-		if (locals.unconfirmedBlocks[i].height === confirmedHeight) orphanedIndices.push(i); // confirmed orphaned
+		if (locals.unconfirmedBlocks[i].height === confirmedHeight)
+			orphanedBlocks.push(locals.unconfirmedBlocks[i]); // confirmed orphaned
 	}
 
-	// put to orphaned pool
-	for (let i = orphanedIndices.length - 1; i >= 0; i--) {
-		await OrphanedBlock.create(cleanBlock(locals.unconfirmedBlocks[i]));
-		locals.unconfirmedBlocks.splice(orphanedIndices[i], 1);
-	}
+	// put to orphaned blocks db
+	await OrphanedBlock.insertMany(orphanedBlocks.map(cleanBlock));
+
+	locals.unconfirmedBlocks = locals.unconfirmedBlocks.filter(
+		block => !orphanedBlocks.includes(block)
+	);
+
+	// update tx info db orphaned
+	await TransactionInfo.updateMany(
+		{ blockHash: { $in: orphanedBlocks.map(b => b.hash) } },
+		{ $set: { status: "orphaned" } }
+	);
 
 	if (lastBlock.height !== confirmedHeight)
-		throw Error("something is wrong w the unconfirmed blocks array!");
+		console.log("BAD: something is wrong w the unconfirmed blocks array!");
 
 	// remove tx frm mempool
 	await MempoolTransaction.deleteMany({
 		hash: { $in: lastBlock.transactions.slice(1).map(tx => tx.hash) },
 	});
+
+	// update tx in tx infos
+	await TransactionInfo.updateMany(
+		{ blockHash: lastBlock.hash },
+		{ $set: { status: "confirmed" } }
+	);
 
 	// update utxo
 	const inputsDelete = [];
@@ -114,8 +168,8 @@ const updateMempoolAndUtxos = (locals, block) => {
 };
 
 const recalcMempoolAndUtxos = async locals => {
-	locals.utxos = await Utxo.find({}, { _id: false });
-	locals.mempool = await MempoolTransaction.find({}, { _id: false });
+	locals.utxos = await Utxo.find({}, { _id: false }).lean();
+	locals.mempool = await MempoolTransaction.find({}, { _id: false }).lean();
 	const bestchain = [locals.headBlock];
 
 	let currentHash = locals.headBlock.previousHash;
@@ -159,6 +213,7 @@ export const addBlock = async (locals, block, io) => {
 	}
 
 	insertUnconfirmedBlock(locals, block);
+	await insertTransactionInfos(block);
 
 	if (isNewHead) {
 		// forked, new head block, call for reorg
@@ -167,7 +222,7 @@ export const addBlock = async (locals, block, io) => {
 		updateDifficulty(locals, previousBlock);
 	}
 
-	saveUnconfirmedBlocks(locals);
+	updateUnconfirmedBlocks(locals);
 
 	// broadcast block to other nodes and all clients.
 	io.emit("block", {
@@ -197,7 +252,7 @@ export const setupUnconfirmedBlocks = async locals => {
 	);
 };
 
-export const saveUnconfirmedBlocks = async locals => {
+export const updateUnconfirmedBlocks = async locals => {
 	// dump unconfirmed blocks into persistent
 	await UnconfirmedBlock.deleteMany();
 	await UnconfirmedBlock.insertMany(locals.unconfirmedBlocks);

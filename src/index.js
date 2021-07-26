@@ -16,11 +16,8 @@ import { utxoRouter } from "./routes/utxo.route.js";
 
 import params from "./params.js";
 
-import { resetMigration, phase1, phase2 } from "./controllers/migrate.controller.js";
-import {
-	setupUnconfirmedBlocks,
-	saveUnconfirmedBlocks,
-} from "./controllers/blockchain.controller.js";
+import { resetMigration, phase1, phase2, phase3 } from "./controllers/migrate.controller.js";
+import { setupUnconfirmedBlocks } from "./controllers/blockchain.controller.js";
 
 const app = Express();
 const server = http.createServer(app);
@@ -50,6 +47,7 @@ server.listen(port, async () => {
 	// await phase1();
 	// await phase2();
 	setupUnconfirmedBlocks(app.locals);
+	// await phase3();
 });
 
 // const exit = () => {

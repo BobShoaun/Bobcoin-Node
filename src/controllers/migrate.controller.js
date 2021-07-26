@@ -9,6 +9,7 @@ import {
 	UnconfirmedBlock,
 	MempoolTransaction,
 	Utxo,
+	TransactionInfo,
 } from "../models/index.js";
 
 const { createBlockchain, getHighestValidBlock, getBestChain, calculateUTXOSet, calculateMempool } =
@@ -64,4 +65,180 @@ export const phase1 = async () => {
 	const orphanedBlocks = blockchain.filter(block => !bestchain.some(b => b.hash === block.hash));
 	await OrphanedBlock.insertMany(orphanedBlocks.map(cleanBlock));
 	await MatureBlock.insertMany(bestchain.map(cleanBlock));
+};
+
+const matureTxInfo = async () => {
+	// construct tx infos from mature blocks
+	const matureBlocks = await MatureBlock.find({}, { _id: false });
+	let transactionInfos = [];
+	for (const block of matureBlocks) {
+		for (const transaction of block.transactions) {
+			const transactionInfo = {
+				hash: transaction.hash,
+				timestamp: transaction.timestamp,
+				version: transaction.version,
+				blockHash: block.hash,
+				blockHeight: block.height,
+				status: "confirmed",
+				inputs: await Promise.all(
+					transaction.inputs.map(async input => {
+						const inputTx = (
+							await MatureBlock.findOne(
+								{ "transactions.hash": input.txHash },
+								{ "transactions.$": 1 }
+							)
+						)?.transactions[0];
+						if (!inputTx) throw Error("bad transaction", transaction.hash);
+						const { address, amount } = inputTx.outputs[input.outIndex];
+						return {
+							txHash: input.txHash,
+							outIndex: input.outIndex,
+							publicKey: input.publicKey,
+							signature: input.signature,
+							address,
+							amount,
+						};
+					})
+				),
+				outputs: await Promise.all(
+					transaction.outputs.map(async (output, index) => {
+						const outputTx = (
+							await MatureBlock.findOne(
+								{
+									"transactions.inputs": {
+										$elemMatch: { txHash: transaction.hash, outIndex: index },
+									},
+								},
+								{ "transactions.$": 1 }
+							)
+						)?.transactions[0];
+						return {
+							address: output.address,
+							amount: output.amount,
+							txHash: outputTx?.hash,
+						};
+					})
+				),
+			};
+			transactionInfos.push(transactionInfo);
+		}
+	}
+
+	await TransactionInfo.insertMany(transactionInfos);
+};
+
+const orphanedTxInfo = async () => {
+	const orphanedBlocks = await OrphanedBlock.find({}, { _id: false });
+	let transactionInfos = [];
+	for (const block of orphanedBlocks) {
+		for (const transaction of block.transactions) {
+			const transactionInfo = {
+				hash: transaction.hash,
+				timestamp: transaction.timestamp,
+				version: transaction.version,
+				blockHash: block.hash,
+				blockHeight: block.height,
+				status: "orphaned",
+				inputs: await Promise.all(
+					transaction.inputs.map(async input => {
+						const inputTx = (
+							await MatureBlock.findOne(
+								{ "transactions.hash": input.txHash },
+								{ "transactions.$": 1 }
+							)
+						)?.transactions[0];
+						if (!inputTx) throw Error("bad transaction", transaction.hash);
+						const { address, amount } = inputTx.outputs[input.outIndex];
+						return {
+							txHash: input.txHash,
+							outIndex: input.outIndex,
+							publicKey: input.publicKey,
+							signature: input.signature,
+							address,
+							amount,
+						};
+					})
+				),
+				outputs: await Promise.all(
+					transaction.outputs.map(async (output, index) => {
+						const outputTx = (
+							await MatureBlock.findOne(
+								{
+									"transactions.inputs": {
+										$elemMatch: { txHash: transaction.hash, outIndex: index },
+									},
+								},
+								{ "transactions.$": 1 }
+							)
+						)?.transactions[0];
+						return {
+							address: output.address,
+							amount: output.amount,
+							txHash: outputTx?.hash,
+						};
+					})
+				),
+			};
+			transactionInfos.push(transactionInfo);
+		}
+	}
+
+	await TransactionInfo.insertMany(transactionInfos);
+};
+
+const unconfirmedTxInfo = async () => {
+	const unconfirmedBlocks = await UnconfirmedBlock.find({}, { _id: false }).lean();
+	const txInfos = [];
+	for (const block of unconfirmedBlocks) {
+		for (const transaction of block.transactions) {
+			const inputs = await Promise.all(
+				transaction.inputs.map(async input => {
+					let inputTx = await TransactionInfo.findOne({ hash: input.txHash });
+					if (!inputTx)
+						inputTx = (
+							await UnconfirmedBlock.findOne(
+								{ "transactions.hash": input.txHash },
+								{ "transactions.$": 1 }
+							)
+						)?.transactions[0];
+
+					if (!inputTx) throw Error("bad transaction", transaction.hash);
+					const { address, amount } = inputTx.outputs[input.outIndex];
+					return { ...input, address, amount };
+				})
+			);
+			const outputs = await Promise.all(
+				transaction.outputs.map(async (output, index) => {
+					const outputTx = (
+						await UnconfirmedBlock.findOne(
+							{
+								"transactions.inputs": {
+									$elemMatch: { txHash: transaction.hash, outIndex: index },
+								},
+							},
+							{ "transactions.$": 1 }
+						)
+					)?.transactions?.[0];
+					return { ...output, txHash: outputTx?.hash };
+				})
+			);
+			txInfos.push({
+				...transaction,
+				blockHash: block.hash,
+				blockHeight: block.height,
+				status: "unconfirmed",
+				inputs,
+				outputs,
+			});
+		}
+	}
+	await TransactionInfo.insertMany(txInfos);
+};
+
+// build tx info table from all blocks (mature, orphaned, unconfirmed)
+export const phase3 = async () => {
+	await TransactionInfo.deleteMany();
+	await matureTxInfo();
+	await orphanedTxInfo();
+	await unconfirmedTxInfo();
 };

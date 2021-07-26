@@ -1,4 +1,9 @@
-import { OrphanedBlock, MatureBlock, MempoolTransaction } from "../models/index.js";
+import {
+	OrphanedBlock,
+	MatureBlock,
+	MempoolTransaction,
+	TransactionInfo,
+} from "../models/index.js";
 
 import { validatedTransaction } from "./blockcrypto.js";
 
@@ -9,156 +14,61 @@ export const getTransaction = async (locals, hash) => {
 	let transaction = locals.mempool.find(tx => tx.hash === hash);
 	if (transaction) return transaction;
 
-	let block = locals.unconfirmedBlocks.find(block =>
-		block.transactions.some(tx => tx.hash === hash)
-	);
-	if (block) return block.transactions.find(tx => tx.hash === hash);
+	for (const block of locals.unconfirmedBlocks) {
+		const tx = block.transactions.find(tx => tx.hash === hash);
+		if (tx) {
+			transaction = tx;
+			break;
+		}
+	}
+	if (transaction) return transaction;
 
-	block = await MatureBlock.findOne({ "transactions.hash": hash }, { _id: false });
-	if (block) return block.transactions.find(tx => tx.hash === hash);
+	transaction = (await MatureBlock.findOne({ "transactions.hash": hash }, { "transactions.$": 1 }))
+		?.transactions[0];
+	if (transaction) return transaction;
 
-	block = await OrphanedBlock.findOne({ "transactions.hash": hash }, { _id: false });
-	if (block) return block.transactions.find(tx => tx.hash === hash);
+	transaction = (
+		await OrphanedBlock.findOne({ "transactions.hash": hash }, { "transactions.$": 1 })
+	)?.transactions[0];
+	if (transaction) return transaction;
 
 	throw Error("cannot find transaction with hash: " + hash);
 };
 
-export const findTxOutput = async (locals, input) => {
-	let utxo = null;
-
-	// find tx in unconfirmedBlocks
-	outer: for (const unconfirmedBlock of locals.unconfirmedBlocks) {
-		for (const tx of unconfirmedBlock.transactions) {
-			if (tx.hash !== input.txHash) continue;
-			utxo = tx.outputs[input.outIndex];
-			break outer;
-		}
-	}
-
-	if (utxo) return utxo;
-
-	const block = await MatureBlock.findOne({ "transactions.hash": input.txHash });
-	return block.transactions.find(tx => tx.hash === input.txHash).outputs[input.outIndex];
-};
-
-const getTxInfoMempool = (locals, hash) => {
-	let transaction = locals.mempool.find(tx => tx.hash === hash);
-	if (!transaction) return null;
+const getMempoolTxInfo = (locals, transaction) => {
 	const inputs = transaction.inputs.map(input => {
 		const utxo = locals.utxos.find(
 			utxo => utxo.txHash === input.txHash && utxo.outIndex === input.outIndex
 		);
-		return {
-			txHash: utxo.txHash,
-			outIndex: utxo.outIndex,
-			address: utxo.address,
-			amount: utxo.amount,
-			publicKey: input.publicKey,
-			signature: input.signature,
-		};
+		if (!utxo) throw Error("Invalid: utxo not found.");
+		return { ...input, address: utxo.address, amount: utxo.amount };
 	});
-	const outputs = transaction.outputs.map(output => ({
-		address: output.address,
-		amount: output.amount,
-		spent: false,
-	}));
-	return { transaction, inputs, outputs, status: "Mempool" };
+	return { ...transaction, inputs, status: "mempool" };
 };
 
-const getTxInfo = async (locals, block, hash, status) => {
-	const transaction = block.transactions.find(tx => tx.hash === hash);
-
-	const inputs = [];
-	const outputs = [];
-
-	for (const input of transaction.inputs) {
-		const utxo = await findTxOutput(locals, input);
-		inputs.push({
-			txHash: input.txHash,
-			outIndex: input.outIndex,
-			address: utxo.address,
-			amount: utxo.amount,
-			publicKey: input.publicKey,
-			signature: input.signature,
-		});
-	}
-
-	for (let i = 0; i < transaction.outputs.length; i++) {
-		const utxo = locals.utxos.find(utxo => utxo.txHash === transaction.hash && utxo.outIndex === i);
-		outputs.push({
-			address: transaction.outputs[i].address,
-			amount: transaction.outputs[i].amount,
-			spent: !utxo,
-		});
-	}
-
-	let confirmations = 0;
-
-	switch (status) {
-		case "Unconfirmed":
-			confirmations = locals.headBlock.height - block.height + 1; // TODO: not correct for forked blocks
-			break;
-		case "Confirmed":
-			confirmations = locals.headBlock.height - block.height + 1;
-			break;
-		default:
-			confirmations = 0;
-	}
-
-	return { transaction, block, inputs, outputs, status, confirmations };
-};
-
-export const getTransactionInfo = async (locals, hash) => {
+export const getTransactionInfo = async (locals, hash, blockHash) => {
 	// check if tx is in mempool
-	let info = getTxInfoMempool(locals, hash);
-	if (info) return info;
+	const mempoolTx = locals.mempool.find(tx => tx.hash === hash);
+	if (mempoolTx) return getMempoolTxInfo(locals, mempoolTx);
 
-	// check if tx is in unconfirmed blocks
-	let block = locals.unconfirmedBlocks.find(block =>
-		block.transactions.some(tx => tx.hash === hash)
-	);
-	if (block) return getTxInfo(locals, block, hash, "Unconfirmed");
+	const transaction = blockHash
+		? await TransactionInfo.findOne({ hash, blockHash }, { _id: false })
+		: await TransactionInfo.findOne({ hash }, { _id: false });
 
-	// check if tx is in mature blocks
-	block = await MatureBlock.findOne({ "transactions.hash": hash }, { _id: false });
-	if (block) return getTxInfo(locals, block, hash, "Confirmed");
-
-	// check if tx is orphaned
-	block = await OrphanedBlock.findOne({ "transactions.hash": hash }, { _id: false });
-	if (block) return getTxInfo(locals, block, hash, "Orphaned");
-
-	throw Error("cannot find transaction with hash: " + hash);
+	if (!transaction) throw Error("cannot find transaction with hash: " + hash);
+	return transaction;
 };
 
 export const getMempoolInfo = locals => {
 	const mempoolInfo = [];
 	const invalidMempool = [];
-	outer: for (const transaction of locals.mempool) {
-		const inputs = [];
-		for (const input of transaction.inputs) {
-			const utxo = locals.utxos.find(
-				utxo => utxo.txHash === input.txHash && utxo.outIndex === input.outIndex
-			);
-			if (!utxo) {
-				invalidMempool.push(transaction);
-				continue outer;
-			}
-			inputs.push({
-				txHash: utxo.txHash,
-				outIndex: utxo.outIndex,
-				address: utxo.address,
-				amount: utxo.amount,
-				publicKey: input.publicKey,
-				signature: input.signature,
-			});
+	for (const transaction of locals.mempool) {
+		try {
+			const txInfo = getMempoolTxInfo(locals, transaction);
+			mempoolInfo.push(txInfo);
+		} catch {
+			invalidMempool.push(transaction);
 		}
-
-		const outputs = transaction.outputs.map(output => ({
-			address: output.address,
-			amount: output.amount,
-			spent: false,
-		}));
-		mempoolInfo.push({ transaction, inputs, outputs });
 	}
 
 	if (invalidMempool.length)

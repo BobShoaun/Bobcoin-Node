@@ -1,6 +1,4 @@
-import { findTxOutput } from "./transaction.controller.js";
-
-import { OrphanedBlock, MatureBlock } from "../models/index.js";
+import { OrphanedBlock, MatureBlock, TransactionInfo } from "../models/index.js";
 
 // export const mineGenesis = async address => {
 // 	const output = createOutput(address, params.initBlkReward);
@@ -14,67 +12,22 @@ import { OrphanedBlock, MatureBlock } from "../models/index.js";
 
 export const getBlock = async (locals, hash) => {
 	let block = locals.unconfirmedBlocks.find(block => block.hash === hash);
-	if (block) return { block, status: "Unconfirmed" };
+	if (block) return { block, status: "unconfirmed" };
 	block = await MatureBlock.findOne({ hash }, { _id: false });
-	if (block) return { block, status: "Confirmed" };
+	if (block) return { block, status: "confirmed" };
 	block = await OrphanedBlock.findOne({ hash }, { _id: false });
-	if (block) return { block, status: "Orphaned" };
+	if (block) return { block, status: "orphaned" };
 	throw Error("cannot find block with hash: " + hash);
 };
 
 export const getBlockInfo = async (locals, hash) => {
 	const { block, status } = await getBlock(locals, hash);
+	const txs = await TransactionInfo.find({ blockHash: hash }, { _id: false });
+	const transactions = [...txs].sort(
+		(a, b) =>
+			block.transactions.findIndex(tx => tx.hash === a.hash) -
+			block.transactions.findIndex(tx => tx.hash === b.hash)
+	);
 
-	const transactionsInfo = [];
-
-	for (const transaction of block.transactions) {
-		const inputs = [];
-		const outputs = [];
-
-		for (const input of transaction.inputs) {
-			const utxo = await findTxOutput(locals, input);
-
-			inputs.push({
-				txHash: input.txHash,
-				outIndex: input.outIndex,
-				address: utxo.address,
-				amount: utxo.amount,
-				publicKey: input.publicKey,
-				signature: input.signature,
-			});
-		}
-
-		for (let i = 0; i < transaction.outputs.length; i++) {
-			const utxo = locals.utxos.find(
-				utxo => utxo.txHash === transaction.hash && utxo.outIndex === i
-			);
-			outputs.push({
-				address: transaction.outputs[i].address,
-				amount: transaction.outputs[i].amount,
-				spent: !utxo,
-			});
-		}
-
-		transactionsInfo.push({ transaction, inputs, outputs });
-	}
-
-	let confirmations = 0;
-
-	switch (status) {
-		case "Unconfirmed":
-			confirmations = locals.headBlock.height - block.height + 1; // TODO: not correct for forked blocks
-			break;
-		case "Confirmed":
-			confirmations = locals.headBlock.height - block.height + 1;
-			break;
-		default:
-			confirmations = 0;
-	}
-
-	return {
-		block,
-		transactionsInfo,
-		confirmations,
-		status,
-	};
+	return { block, transactions, status };
 };
