@@ -41,14 +41,15 @@ const insertTransactionInfos = async block => {
 		const transaction = block.transactions[i];
 		const inputs = await Promise.all(
 			transaction.inputs.map(async input => {
+				// might need to account for orphaned ones?
 				const inputTx = await TransactionInfo.findOne({ hash: input.txHash });
+				if (!inputTx) throw Error("Fatal: inputTx not found!");
 
 				await TransactionInfo.updateMany(
 					{ hash: input.txHash },
 					{ $set: { [`outputs.${input.outIndex}.txHash`]: transaction.hash } }
 				);
 
-				if (!inputTx) throw Error("Fatal: inputTx not found!");
 				const { address, amount } = inputTx.outputs[input.outIndex];
 				return { ...input, address, amount };
 			})

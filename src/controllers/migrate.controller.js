@@ -235,10 +235,28 @@ const unconfirmedTxInfo = async () => {
 	await TransactionInfo.insertMany(txInfos);
 };
 
+const outputTxInfo = async () => {
+	const txInfos = await TransactionInfo.find({}, { _id: false }).lean();
+	for (const transaction of txInfos) {
+		for (let i = 0; i < transaction.outputs.length; i++) {
+			const spendingTx = await TransactionInfo.findOne({
+				inputs: { $elemMatch: { txHash: transaction.hash, outIndex: i } },
+			});
+
+			if (!spendingTx) continue;
+			await TransactionInfo.updateOne(
+				{ hash: transaction.hash, blockHash: transaction.blockHash },
+				{ $set: { [`outputs.${i}.txHash`]: spendingTx.hash } }
+			);
+		}
+	}
+};
+
 // build tx info table from all blocks (mature, orphaned, unconfirmed)
 export const phase3 = async () => {
 	await TransactionInfo.deleteMany();
 	await matureTxInfo();
 	await orphanedTxInfo();
 	await unconfirmedTxInfo();
+	await outputTxInfo();
 };
