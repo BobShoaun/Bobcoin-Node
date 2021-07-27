@@ -1,6 +1,6 @@
 import Express from "express";
 
-import { getBlock, getBlockInfo } from "../controllers/block.controller.js";
+import { getBlock, getBlockInfo, getBlockHeightInfo } from "../controllers/block.controller.js";
 import { addBlock } from "../controllers/blockchain.controller.js";
 
 export const blocksRouter = io => {
@@ -23,6 +23,15 @@ export const blocksRouter = io => {
 	router.get("/info/:hash", async (req, res) => {
 		try {
 			const blockInfo = await getBlockInfo(req.app.locals, req.params.hash);
+			res.send(blockInfo);
+		} catch (e) {
+			error(res, e);
+		}
+	});
+
+	router.get("/info/height/:height", async (req, res) => {
+		try {
+			const blockInfo = await getBlockHeightInfo(req.app.locals, parseInt(req.params.height));
 			res.send(blockInfo);
 		} catch (e) {
 			error(res, e);
