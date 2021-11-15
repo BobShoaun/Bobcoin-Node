@@ -13,26 +13,28 @@ import { consensusRouter } from "./routes/consensus.route.js";
 import { addressRouter } from "./routes/address.route.js";
 import { mineRouter } from "./routes/mine.route.js";
 import { utxoRouter } from "./routes/utxo.route.js";
+import { testRouter } from "./routes/test.route.js";
 
 import params from "./params.js";
 
-import { resetMigration, phase1, phase2, phase3 } from "./controllers/migrate.controller.js";
 import { setupUnconfirmedBlocks } from "./controllers/blockchain.controller.js";
+import { resetMigration, phase1, phase2, phase3 } from "./controllers/migrate.controller.js";
 
 const app = Express();
 const server = http.createServer(app);
 
 app.get("/", (req, res) => {
-	const message = `
+  const message = `
   <h2>Bobcoin Node</h2>
   <pre>Network: ${network}</pre>
   <pre>Parameters: ${JSON.stringify(params, null, 2)}</pre>
   <pre>Head block: ${JSON.stringify(req.app.locals.headBlock, null, 2)}</pre>
+  <pre>Difficulty: ${req.app.locals.difficulty}</pre>
   <pre>Unconfirmed blocks: ${JSON.stringify(req.app.locals.unconfirmedBlocks, null, 2)}</pre>
   <pre>Mempool: ${JSON.stringify(req.app.locals.mempool, null, 2)}</pre>
   <pre>Utxos: ${JSON.stringify(req.app.locals.utxos, null, 2)}</pre>
   `;
-	res.send(message);
+  res.send(message);
 });
 
 app.locals.headBlock = null;
@@ -42,24 +44,14 @@ app.locals.utxos = []; // utxos as of headblock, recalc with reorg
 app.locals.difficulty = params.initBlkDiff;
 
 server.listen(port, async () => {
-	console.log("Server listening on port: ", port);
-	// await resetMigration();
-	// await phase1();
-	// await phase2();
-	setupUnconfirmedBlocks(app.locals);
-	// await phase3();
+  console.log("Server listening on port: ", port);
+
+  // await resetMigration();
+  // await phase1();
+  // await phase2();
+  // await phase3();
+  await setupUnconfirmedBlocks(app.locals);
 });
-
-// const exit = () => {
-// 	console.log("shutting down server");
-// 	// await dumpUnconfirmed();
-// };
-
-// process.on("exit", exit.bind(null));
-// process.on("SIGINT", exit.bind(null));
-// process.on("SIGUSR1", exit.bind(null));
-// process.on("SIGUSR2", exit.bind(null));
-// process.on("uncaughtException", exit.bind(null));
 
 mongodb();
 const io = socket(server, app.locals);
@@ -75,3 +67,4 @@ app.use("/consensus", consensusRouter());
 app.use("/address", addressRouter());
 app.use("/mine", mineRouter());
 app.use("/utxo", utxoRouter());
+app.use("/test", testRouter());
