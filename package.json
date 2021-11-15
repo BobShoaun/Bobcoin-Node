@@ -13,7 +13,7 @@
     "url": "git+https://github.com/BobShoaun/Bobcoin-Backend-Node.git"
   },
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/BobShoaun/Bobcoin-Backend-Node/issues"
   },
