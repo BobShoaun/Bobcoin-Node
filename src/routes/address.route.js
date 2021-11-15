@@ -1,20 +1,38 @@
 import Express from "express";
-import { getAddressInfo, getWalletInfo } from "../controllers/address.controller.js";
+import {
+  getAddressInfo,
+  getAddressTransactions,
+  getAddressUtxos,
+  getWalletInfo,
+} from "../controllers/address.controller.js";
 
 export const addressRouter = () => {
-	const router = Express.Router();
+  const router = Express.Router();
 
-	router.get("/:address", async (req, res) => {
-		// const block = req.query.block;
-		const address = req.params.address;
-		const addressInfo = await getAddressInfo(req.app.locals, address);
-		res.send(addressInfo);
-	});
+  router.get("/info/:address", async (req, res) => {
+    const address = req.params.address;
+    const addressInfo = await getAddressInfo(req.app.locals, address);
+    res.send(addressInfo);
+  });
 
-	router.post("/balance", async (req, res) => {
-		const addresses = req.body.addresses;
-		res.send(await getWalletInfo(req.app.locals, addresses));
-	});
+  router.get("/transactions/:address", async (req, res) => {
+    const address = req.params.address;
+    const limit = parseInt(req.query.limit);
+    const offset = parseInt(req.query.offset);
+    const transactions = await getAddressTransactions(address, limit, offset);
+    res.send(transactions);
+  });
 
-	return router;
+  router.get("/utxos/:address", async (req, res) => {
+    const address = req.params.address;
+    const utxos = await getAddressUtxos(req.app.locals, address);
+    res.send(utxos);
+  });
+
+  router.post("/balance", async (req, res) => {
+    const addresses = req.body.addresses;
+    res.send(await getWalletInfo(req.app.locals, addresses));
+  });
+
+  return router;
 };
