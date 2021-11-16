@@ -1,9 +1,11 @@
 import Express from "express";
 import {
   getAddressInfo,
+  getAddressesInfo,
   getAddressTransactions,
+  getAddressesTransactions,
   getAddressUtxos,
-  getWalletInfo,
+  getAddressesUtxos,
 } from "../controllers/address.controller.js";
 
 export const addressRouter = () => {
@@ -29,9 +31,24 @@ export const addressRouter = () => {
     res.send(utxos);
   });
 
-  router.post("/balance", async (req, res) => {
+  router.post("/info", async (req, res) => {
     const addresses = req.body.addresses;
-    res.send(await getWalletInfo(req.app.locals, addresses));
+    const addressesInfo = await getAddressesInfo(req.app.locals, addresses);
+    res.send(addressesInfo);
+  });
+
+  router.post("/transactions", async (req, res) => {
+    const addresses = req.body.addresses;
+    const limit = parseInt(req.query.limit);
+    const offset = parseInt(req.query.offset);
+    const transactions = await getAddressesTransactions(addresses, limit, offset);
+    res.send(transactions);
+  });
+
+  router.post("/utxos", async (req, res) => {
+    const addresses = req.body.addresses;
+    const utxos = await getAddressesUtxos(req.app.locals, addresses);
+    res.send(utxos);
   });
 
   return router;
