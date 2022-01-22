@@ -71,8 +71,9 @@ export const transactionRouter = io => {
   });
 
   router.post("/", (req, res) => {
+    const { transaction } = req.body;
+    if (!transaction) return res.sendStatus(400);
     try {
-      const transaction = req.body.transaction;
       const validation = addTransaction(req.app.locals, transaction, io);
       res.send(validation);
     } catch (e) {
