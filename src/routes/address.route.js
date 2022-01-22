@@ -13,6 +13,7 @@ export const addressRouter = () => {
 
   router.get("/info/:address", async (req, res) => {
     const address = req.params.address;
+    if (!address) return res.sendStatus(400);
     const addressInfo = await getAddressInfo(req.app.locals, address);
     res.send(addressInfo);
   });
@@ -21,12 +22,16 @@ export const addressRouter = () => {
     const address = req.params.address;
     const limit = parseInt(req.query.limit);
     const offset = parseInt(req.query.offset);
+    if (!address) return res.sendStatus(400);
+
     const transactions = await getAddressTransactions(address, limit, offset);
     res.send(transactions);
   });
 
   router.get("/utxos/:address", async (req, res) => {
     const address = req.params.address;
+    if (!address) return res.sendStatus(400);
+
     const utxos = await getAddressUtxos(req.app.locals, address);
     res.send(utxos);
   });

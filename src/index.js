@@ -1,11 +1,10 @@
 import http from "http";
-import Express from "express";
+import express from "express";
 import cors from "cors";
+import mongoose from "mongoose";
+import { atlasURI, network, port } from "./config.js";
 
-import { port } from "./config.js";
 import { socket } from "./socket.js";
-import { mongodb } from "./mongodb.js";
-import { network } from "./config.js";
 import { blocksRouter } from "./routes/block.route.js";
 import { blockchainRouter } from "./routes/blockchain.route.js";
 import { transactionRouter } from "./routes/transaction.route.js";
@@ -14,14 +13,33 @@ import { addressRouter } from "./routes/address.route.js";
 import { mineRouter } from "./routes/mine.route.js";
 import { utxoRouter } from "./routes/utxo.route.js";
 import { testRouter } from "./routes/test.route.js";
+import faucetRouter from "./routes/faucet.route.js";
+import { handlerErrors } from "./middlewares/general.middleware.js";
 
 import params from "./params.js";
 
 import { setupUnconfirmedBlocks } from "./controllers/blockchain.controller.js";
 import { resetMigration, phase1, phase2, phase3 } from "./controllers/migrate.controller.js";
 
-const app = Express();
+const app = express();
 const server = http.createServer(app);
+
+// socket.io
+const io = socket(server, app.locals);
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cors());
+
+app.use("/block", blocksRouter(io));
+app.use("/blockchain", blockchainRouter());
+app.use("/transaction", transactionRouter(io));
+app.use("/consensus", consensusRouter());
+app.use("/address", addressRouter());
+app.use("/mine", mineRouter());
+app.use("/utxo", utxoRouter());
+app.use("/test", testRouter());
+app.use("/faucet", faucetRouter);
 
 app.get("/", (req, res) => {
   const message = `
@@ -37,34 +55,33 @@ app.get("/", (req, res) => {
   res.send(message);
 });
 
+app.use(handlerErrors);
+
 app.locals.headBlock = null;
 app.locals.unconfirmedBlocks = []; // sorted by descending height
 app.locals.mempool = []; // mempool as of headblock, recalc with reorg
 app.locals.utxos = []; // utxos as of headblock, recalc with reorg
 app.locals.difficulty = params.initBlkDiff;
 
-server.listen(port, async () => {
-  console.log("Server listening on port: ", port);
+(async function () {
+  try {
+    // mongodb connection
+    await mongoose.connect(atlasURI, {
+      useNewUrlParser: true,
+      useCreateIndex: true,
+      useUnifiedTopology: true,
+      useFindAndModify: false,
+    });
+    console.log("MongoDB database connection established to: ", network);
 
-  // await resetMigration();
-  // await phase1();
-  // await phase2();
-  // await phase3();
-  await setupUnconfirmedBlocks(app.locals);
-});
+    // await resetMigration();
+    // await phase1();
+    // await phase2();
+    // await phase3();
+    await setupUnconfirmedBlocks(app.locals);
 
-mongodb();
-const io = socket(server, app.locals);
-
-app.use(Express.json());
-app.use(Express.urlencoded({ extended: true }));
-app.use(cors());
-
-app.use("/block", blocksRouter(io));
-app.use("/blockchain", blockchainRouter());
-app.use("/transaction", transactionRouter(io));
-app.use("/consensus", consensusRouter());
-app.use("/address", addressRouter());
-app.use("/mine", mineRouter());
-app.use("/utxo", utxoRouter());
-app.use("/test", testRouter());
+    server.listen(port, () => console.log("Server listening on port: ", port));
+  } catch (e) {
+    console.error("could not connect to mongodb:", e);
+  }
+})();
