@@ -1,6 +1,6 @@
 import BlockCrypto from "blockcrypto";
 
-import params from "../params.js";
+import params from "../params";
 import {
   OrphanedBlock,
   MatureBlock,
@@ -8,13 +8,13 @@ import {
   MempoolTransaction,
   Utxo,
   TransactionInfo,
-} from "../models/index.js";
+} from "../models/index";
 
-import { cleanBlock } from "./migrate.controller.js";
-import { getMempoolInfo } from "./transaction.controller.js";
-import { getBlockByHeight } from "./block.controller.js";
+import { cleanBlock } from "./migrate.controller";
+import { getMempoolInfo } from "./transaction.controller";
+import { getBlockByHeight } from "./block.controller";
 
-import { validateBlock } from "./blockcrypto.js";
+import { validateBlock } from "./blockcrypto";
 
 const { RESULT } = BlockCrypto;
 
@@ -56,7 +56,7 @@ const insertTransactionInfos = async block => {
     const inputs = await Promise.all(
       transaction.inputs.map(async input => {
         // might need to account for orphaned ones?
-        const inputTx = await TransactionInfo.findOne({ hash: input.txHash });
+        const inputTx = (await TransactionInfo.findOne({ hash: input.txHash })) as any;
         if (!inputTx) throw Error("Fatal: inputTx not found!");
 
         await TransactionInfo.updateMany(
@@ -99,6 +99,7 @@ const removeConfirmedBlocks = async locals => {
   }
 
   // put to orphaned blocks db
+  // @ts-ignore
   await OrphanedBlock.insertMany(orphanedBlocks.map(cleanBlock));
 
   locals.unconfirmedBlocks = locals.unconfirmedBlocks.filter(

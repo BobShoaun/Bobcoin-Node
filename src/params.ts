@@ -17,7 +17,7 @@
   give us hardCap: 409_600_000 * coin 
   */
 
-import { network } from "./config.js";
+import { network } from "./config";
 
 const testnetParams = {
   name: "Bobcoin",

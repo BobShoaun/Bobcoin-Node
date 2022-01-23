@@ -1,6 +1,6 @@
 import Express from "express";
 
-import { createCandidateBlock, getMiningInfo } from "../controllers/mine.controller.js";
+import { createCandidateBlock, getMiningInfo } from "../controllers/mine.controller";
 
 export const mineRouter = () => {
   const router = Express.Router();

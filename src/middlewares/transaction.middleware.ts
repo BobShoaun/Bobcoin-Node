@@ -1,6 +1,6 @@
-import { MempoolTransaction } from "../models/index.js";
-import { validatedTransaction } from "../controllers/blockcrypto.js";
-import { getMempoolInfo } from "../controllers/transaction.controller.js";
+import { MempoolTransaction } from "../models/index";
+import { validatedTransaction } from "../controllers/blockcrypto";
+import { getMempoolInfo } from "../controllers/transaction.controller";
 import BlockCrypto from "blockcrypto";
 const { RESULT } = BlockCrypto;
 

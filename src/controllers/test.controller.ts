@@ -1,8 +1,8 @@
 import BlockCrypto from "blockcrypto";
 
-import params from "../params.js";
+import params from "../params";
 
-import { validateCandidateBlock } from "./blockcrypto.js";
+import { validateCandidateBlock } from "./blockcrypto";
 
 import {
   OrphanedBlock,
@@ -11,7 +11,7 @@ import {
   MempoolTransaction,
   Utxo,
   TransactionInfo,
-} from "../models/index.js";
+} from "../models/index";
 
 const {
   createOutput,

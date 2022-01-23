@@ -1,4 +1,5 @@
-import { TransactionInfo } from "../models/index.js";
+// @ts-nocheck
+import { TransactionInfo } from "../models/index";
 
 export const getAddressInfo = async (locals, address) => {
   const utxos = await getAddressUtxos(locals, address);

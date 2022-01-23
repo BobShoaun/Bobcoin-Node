@@ -1,11 +1,6 @@
 import mongoose from "mongoose";
-import { atlasURI, network } from "../config.js";
-import {
-  OrphanedBlock,
-  MatureBlock,
-  UnconfirmedBlock,
-  MempoolTransaction,
-} from "../models/index.js";
+import { atlasURI, network } from "../config";
+import { OrphanedBlock, MatureBlock, UnconfirmedBlock, MempoolTransaction } from "../models/index";
 import fs from "fs";
 
 const filePath = process.argv[2] ?? "./output.json";

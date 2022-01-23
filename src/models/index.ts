@@ -1,10 +1,10 @@
 import mongoose from "mongoose";
-import blockSchema from "./block2.model.js";
-import transactionSchema from "./transaction2.model.js";
-import matureBlockSchema from "./matureBlock.model.js";
-import utxoSchema from "./utxo.model.js";
-import transactionInfoSchema from "./transactionInfo.model.js";
-import faucetEntrySchema from "./faucetEntry.model.js";
+import blockSchema from "./block2.model";
+import transactionSchema from "./transaction2.model";
+import matureBlockSchema from "./matureBlock.model";
+import utxoSchema from "./utxo.model";
+import transactionInfoSchema from "./transactionInfo.model";
+import faucetEntrySchema from "./faucetEntry.model";
 
 export const MatureBlock = mongoose.model("mature blocks", matureBlockSchema);
 export const OrphanedBlock = mongoose.model("orphaned blocks", blockSchema);

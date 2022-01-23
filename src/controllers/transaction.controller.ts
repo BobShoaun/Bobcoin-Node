@@ -1,12 +1,7 @@
-import {
-  OrphanedBlock,
-  MatureBlock,
-  MempoolTransaction,
-  TransactionInfo,
-} from "../models/index.js";
+import { OrphanedBlock, MatureBlock, MempoolTransaction, TransactionInfo } from "../models/index";
 
-import { validatedTransaction } from "./blockcrypto.js";
-import { getMempoolUtxos } from "../helpers/utxo.helper.js";
+import { validatedTransaction } from "./blockcrypto";
+import { getMempoolUtxos } from "../helpers/utxo.helper";
 
 import BlockCrypto from "blockcrypto";
 const { RESULT } = BlockCrypto;
@@ -24,12 +19,13 @@ export const getTransaction = async (locals, hash) => {
   }
   if (transaction) return transaction;
 
-  transaction = (await MatureBlock.findOne({ "transactions.hash": hash }, { "transactions.$": 1 }))
-    ?.transactions[0];
+  transaction = (
+    (await MatureBlock.findOne({ "transactions.hash": hash }, { "transactions.$": 1 })) as any
+  )?.transactions[0];
   if (transaction) return transaction;
 
   transaction = (
-    await OrphanedBlock.findOne({ "transactions.hash": hash }, { "transactions.$": 1 })
+    (await OrphanedBlock.findOne({ "transactions.hash": hash }, { "transactions.$": 1 })) as any
   )?.transactions[0];
   if (transaction) return transaction;
 

@@ -1,15 +1,15 @@
 import Express from "express";
-import { FaucetEntry } from "../models/index.js";
+import { FaucetEntry } from "../models/index";
 import { isBefore, sub } from "date-fns";
 
-import params from "../params.js";
+import params from "../params";
 import BlockCrypto from "blockcrypto";
-import { recaptchaSecretKey } from "../config.js";
+import { recaptchaSecretKey } from "../config";
 
-import { getUtxosFactoringMempool } from "../helpers/utxo.helper.js";
-import { getMempoolUtxos } from "../controllers/utxo.controller.js";
-import { faucetDonateAmount, faucetFeeAmount, faucetSecretKey, faucetCooldown } from "../config.js";
-import { addTransaction } from "../middlewares/transaction.middleware.js";
+import { getUtxosFactoringMempool } from "../helpers/utxo.helper";
+import { getMempoolUtxos } from "../controllers/utxo.controller";
+import { faucetDonateAmount, faucetFeeAmount, faucetSecretKey, faucetCooldown } from "../config";
+import { addTransaction } from "../middlewares/transaction.middleware";
 import axios from "axios";
 
 const {
@@ -62,7 +62,7 @@ const createSimpleTransaction = (locals, senderSecretKey, recipientAddress, amou
 
 router.post(
   "/request",
-  async (req, res, next) => {
+  async (req: any, res, next) => {
     const { address, recaptchaResponse } = req.body;
 
     const { data } = await axios.post(
@@ -75,7 +75,7 @@ router.post(
     const { address: faucetAddress } = getKeys(params, faucetSecretKey);
     if (address === faucetAddress) return res.status(400).send("Cannot donate to faucet address");
 
-    let faucetEntry = await FaucetEntry.findOne({ address });
+    let faucetEntry: any = await FaucetEntry.findOne({ address });
 
     if (!faucetEntry) faucetEntry = new FaucetEntry({ address });
     else if (!isBefore(faucetEntry.updatedAt, sub(Date.now(), { seconds: 60 })))
@@ -96,7 +96,7 @@ router.post(
     next();
   },
   addTransaction,
-  async (req, res) => {
+  async (req: any, res) => {
     if (req.validation.code !== RESULT.VALID)
       return res.status(410).send("Insufficient funds in faucet"); // most likely not enough funds in faucet
 

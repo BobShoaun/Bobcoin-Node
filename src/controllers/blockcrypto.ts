@@ -1,7 +1,7 @@
 import BlockCrypto from "blockcrypto";
-import { getMempoolUtxos } from "../helpers/utxo.helper.js";
+import { getMempoolUtxos } from "../helpers/utxo.helper";
 
-import params from "../params.js";
+import params from "../params";
 
 const {
   calculateBlockReward,

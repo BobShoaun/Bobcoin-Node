@@ -1,4 +1,4 @@
-import { OrphanedBlock, MatureBlock, TransactionInfo } from "../models/index.js";
+import { OrphanedBlock, MatureBlock, TransactionInfo } from "../models/index";
 
 export const getBlock = async (locals, hash) => {
   let block = locals.unconfirmedBlocks.find(block => block.hash === hash);
@@ -12,7 +12,7 @@ export const getBlock = async (locals, hash) => {
 
 export const getBlockInfo = async (locals, hash) => {
   const { block, status } = await getBlock(locals, hash);
-  const txs = await TransactionInfo.find({ blockHash: hash }, { _id: false });
+  const txs = (await TransactionInfo.find({ blockHash: hash }, { _id: false })) as any;
   const transactions = [...txs].sort(
     (a, b) =>
       block.transactions.findIndex(tx => tx.hash === a.hash) -
@@ -33,9 +33,9 @@ export const getBlockHeightInfo = async (locals, height) => {
     block = await OrphanedBlock.findOne({ height }, { _id: false });
     status = "orphaned";
   }
-  if (!block) throw Error("cannot find block with hash: " + hash);
+  if (!block) throw Error("cannot find block with height: " + height);
 
-  const txs = await TransactionInfo.find({ blockHash: block.hash }, { _id: false });
+  const txs = (await TransactionInfo.find({ blockHash: block.hash }, { _id: false })) as any;
   const transactions = [...txs].sort(
     (a, b) =>
       block.transactions.findIndex(tx => tx.hash === a.hash) -
@@ -51,6 +51,6 @@ export const getBlockByHeight = async (locals, height) => {
     .filter(block => block.height === height)
     .sort((a, b) => a.timestamp - b.timestamp)?.[0];
   if (!block) block = await MatureBlock.findOne({ height }, { _id: false });
-  if (!block) throw Error("cannot find block with hash: " + hash);
+  if (!block) throw Error("cannot find block with height: " + height);
   return block;
 };

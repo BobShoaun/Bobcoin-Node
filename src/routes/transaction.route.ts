@@ -6,7 +6,7 @@ import {
   getMempoolInfo,
   getTransactions,
   getTransactionCount,
-} from "../controllers/transaction.controller.js";
+} from "../controllers/transaction.controller";
 
 export const transactionRouter = io => {
   const router = Express.Router();
@@ -18,8 +18,8 @@ export const transactionRouter = io => {
 
   router.get("/", async (req, res) => {
     try {
-      const limit = parseInt(req.query.limit);
-      const offset = parseInt(req.query.offset);
+      const limit = parseInt(req.query.limit as string);
+      const offset = parseInt(req.query.offset as string);
       const transactions = await getTransactions(limit, offset);
       res.send(transactions);
     } catch (e) {

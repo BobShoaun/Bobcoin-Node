@@ -6,7 +6,7 @@ import {
   getAddressesTransactions,
   getAddressUtxos,
   getAddressesUtxos,
-} from "../controllers/address.controller.js";
+} from "../controllers/address.controller";
 
 export const addressRouter = () => {
   const router = Express.Router();
@@ -20,8 +20,8 @@ export const addressRouter = () => {
 
   router.get("/transactions/:address", async (req, res) => {
     const address = req.params.address;
-    const limit = parseInt(req.query.limit);
-    const offset = parseInt(req.query.offset);
+    const limit = parseInt(req.query.limit as string);
+    const offset = parseInt(req.query.offset as string);
     if (!address) return res.sendStatus(400);
 
     const transactions = await getAddressTransactions(address, limit, offset);
@@ -44,8 +44,8 @@ export const addressRouter = () => {
 
   router.post("/transactions", async (req, res) => {
     const addresses = req.body.addresses;
-    const limit = parseInt(req.query.limit);
-    const offset = parseInt(req.query.offset);
+    const limit = parseInt(req.query.limit as string);
+    const offset = parseInt(req.query.offset as string);
     const transactions = await getAddressesTransactions(addresses, limit, offset);
     res.send(transactions);
   });

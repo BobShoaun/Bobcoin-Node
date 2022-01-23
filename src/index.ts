@@ -4,22 +4,22 @@ import cors from "cors";
 import mongoose from "mongoose";
 import { atlasURI, network, port } from "./config";
 
-import { socket } from "./socket.js";
-import { blocksRouter } from "./routes/block.route.js";
-import { blockchainRouter } from "./routes/blockchain.route.js";
-import { transactionRouter } from "./routes/transaction.route.js";
-import { consensusRouter } from "./routes/consensus.route.js";
-import { addressRouter } from "./routes/address.route.js";
-import { mineRouter } from "./routes/mine.route.js";
-import { utxoRouter } from "./routes/utxo.route.js";
-import { testRouter } from "./routes/test.route.js";
-import faucetRouter from "./routes/faucet.route.js";
-import { handlerErrors } from "./middlewares/general.middleware.js";
+import { socket } from "./socket";
+import { blocksRouter } from "./routes/block.route";
+import { blockchainRouter } from "./routes/blockchain.route";
+import { transactionRouter } from "./routes/transaction.route";
+import { consensusRouter } from "./routes/consensus.route";
+import { addressRouter } from "./routes/address.route";
+import { mineRouter } from "./routes/mine.route";
+import { utxoRouter } from "./routes/utxo.route";
+import { testRouter } from "./routes/test.route";
+import faucetRouter from "./routes/faucet.route";
+import { handlerErrors } from "./middlewares/general.middleware";
 
-import params from "./params.js";
+import params from "./params";
 
-import { setupUnconfirmedBlocks } from "./controllers/blockchain.controller.js";
-import { resetMigration, phase1, phase2, phase3 } from "./controllers/migrate.controller.js";
+import { setupUnconfirmedBlocks } from "./controllers/blockchain.controller";
+import { resetMigration, phase1, phase2, phase3 } from "./controllers/migrate.controller";
 
 const app = express();
 const server = http.createServer(app);

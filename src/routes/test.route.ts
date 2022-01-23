@@ -1,6 +1,6 @@
 import Express from "express";
 
-import { testDifficulty } from "../controllers/test.controller.js";
+import { testDifficulty } from "../controllers/test.controller";
 
 export const testRouter = () => {
   const router = Express.Router();

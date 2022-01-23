@@ -1,8 +1,8 @@
 import BlockCrypto from "blockcrypto";
 
-import params from "../params.js";
+import params from "../params";
 
-import { validateCandidateBlock } from "./blockcrypto.js";
+import { validateCandidateBlock } from "./blockcrypto";
 
 const {
   createOutput,
