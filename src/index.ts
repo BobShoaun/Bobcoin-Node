@@ -2,7 +2,7 @@ import http from "http";
 import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
-import { atlasURI, network, port } from "./config.js";
+import { atlasURI, network, port } from "./config";
 
 import { socket } from "./socket.js";
 import { blocksRouter } from "./routes/block.route.js";
