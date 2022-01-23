@@ -25,17 +25,28 @@ export const getMiningInfo = locals => ({
 export const createCandidateBlock = async (locals, previousBlock, transactions = [], miner) => {
   let totalInput = 0;
   let totalOutput = 0;
+  const utxos = [...locals.utxos];
   for (const transaction of transactions) {
     for (const input of transaction.inputs) {
-      const utxo = locals.utxos.find(
+      const utxo = utxos.find(
         utxo => utxo.txHash === input.txHash && utxo.outIndex === input.outIndex
       );
-      totalInput += utxo.amount;
+      totalInput += utxo?.amount ?? 0; // utxo may be null, in that case it should fail when validating
     }
-    for (const output of transaction.outputs) totalOutput += output.amount;
+
+    for (let i = 0; i < transaction.outputs.length; i++) {
+      const output = transaction.outputs[i];
+      totalOutput += output.amount;
+      utxos.push({
+        txHash: transaction.hash,
+        outIndex: i,
+        address: output.address,
+        amount: output.amount,
+      });
+    }
   }
 
-  const fees = totalInput - totalOutput;
+  const fees = Math.max(totalInput - totalOutput, 0);
   const output = createOutput(miner, calculateBlockReward(params, previousBlock.height + 1) + fees);
   const coinbase = createTransaction(params, [], [output]);
   coinbase.hash = calculateTransactionHash(coinbase);

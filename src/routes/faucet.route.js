@@ -6,7 +6,7 @@ import params from "../params.js";
 import BlockCrypto from "blockcrypto";
 import { recaptchaSecretKey } from "../config.js";
 
-import { getMempoolUtxos } from "../controllers/utxo.controller.js";
+import { getUtxosFactoringMempool } from "../helpers/utxo.helper.js";
 import { faucetDonateAmount, faucetFeeAmount, faucetSecretKey, faucetCooldown } from "../config.js";
 import { addTransaction } from "../middlewares/transaction.middleware.js";
 import axios from "axios";
@@ -28,8 +28,9 @@ const router = Express.Router();
 const createSimpleTransaction = (locals, senderSecretKey, recipientAddress, amount, fee) => {
   const { pk: senderPublicKey, address: senderAddress } = getKeys(params, senderSecretKey);
 
-  const utxos = getMempoolUtxos(locals, senderAddress);
-  utxos.sort((a, b) => a.amount - b.amount); // sort in ascending amounts, reduces utxo creation
+  const utxos = getUtxosFactoringMempool(locals.utxos, locals.mempool, senderAddress);
+  console.log(utxos);
+  // return;
 
   // pick utxos
   let inputAmount = 0;
@@ -54,6 +55,7 @@ const createSimpleTransaction = (locals, senderSecretKey, recipientAddress, amou
   const signature = signTransaction(transaction, senderSecretKey);
   transaction.inputs.forEach(input => (input.signature = signature));
   transaction.hash = calculateTransactionHash(transaction);
+
   return transaction;
 };
 
@@ -65,16 +67,19 @@ router.post(
     const { data } = await axios.post(
       `https://www.google.com/recaptcha/api/siteverify?secret=${recaptchaSecretKey}&response=${recaptchaResponse}`
     );
-    if (!data.success) return res.sendStatus(401);
+    // if (!data.success) return res.status(401).send("Invalid recaptcha");
 
-    if (!isAddressValid(params, address)) return res.sendStatus(400);
+    if (!isAddressValid(params, address)) return res.status(400).send("Invalid address");
+
+    const { address: faucetAddress } = getKeys(params, faucetSecretKey);
+    if (address === faucetAddress) return res.status(400).send("Cannot donate to faucet address");
 
     let faucetEntry = await FaucetEntry.findOne({ address });
 
     if (!faucetEntry) faucetEntry = new FaucetEntry({ address });
     else if (!isBefore(faucetEntry.updatedAt, sub(Date.now(), { seconds: 60 })))
       // check if last request was 24 hours ago
-      return res.sendStatus(403); // too frequent
+      return res.status(403).send("Please wait for the cooldown period"); // too frequent
 
     // create transaction
     const transaction = createSimpleTransaction(
@@ -91,7 +96,8 @@ router.post(
   },
   addTransaction,
   async (req, res) => {
-    if (req.validation.code !== RESULT.VALID) return res.sendStatus(500); // most likely not enough funds in faucet
+    if (req.validation.code !== RESULT.VALID)
+      return res.status(410).send("Insufficient funds in faucet"); // most likely not enough funds in faucet
 
     req.faucetEntry.count++;
     await req.faucetEntry.save();

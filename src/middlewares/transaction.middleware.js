@@ -1,9 +1,4 @@
-import {
-  OrphanedBlock,
-  MatureBlock,
-  MempoolTransaction,
-  TransactionInfo,
-} from "../models/index.js";
+import { MempoolTransaction } from "../models/index.js";
 import { validatedTransaction } from "../controllers/blockcrypto.js";
 import { getMempoolInfo } from "../controllers/transaction.controller.js";
 import BlockCrypto from "blockcrypto";
@@ -18,12 +13,12 @@ export const addTransaction = async (req, res, next) => {
 
   const socket = locals.socket;
 
-  // await MempoolTransaction.create(transaction);
-  // locals.mempool.push(transaction);
+  await MempoolTransaction.create(transaction);
+  locals.mempool.push(transaction);
 
   // broadcast transaction to other nodes and all clients.
   socket.emit("mempool", {
-    mempool: getMempoolInfo(req.app.locals),
+    mempool: getMempoolInfo(locals),
   });
 
   next();

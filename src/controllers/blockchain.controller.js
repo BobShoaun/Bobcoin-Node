@@ -29,6 +29,19 @@ const insertUnconfirmedBlock = (locals, block) => {
 
 // insert to tx info
 const insertTransactionInfos = async block => {
+  // const coinbaseTxInfo = {
+  //   ...block.transactions[0],
+  //   blockHash: block.hash,
+  //   blockHeight: block.height,
+  //   status: "unconfirmed",
+  // };
+
+  // for (const transaction of block.transactions) {
+
+  // }
+
+  // old
+
   const transactionInfos = [
     {
       ...block.transactions[0],
@@ -199,10 +212,12 @@ const calculateDifficulty = async locals => {
   let correctionFactor = targetTimeDiff / timeDiff;
   correctionFactor = Math.min(correctionFactor, params.maxDiffCorrFact); // clamp correctionfactor
   correctionFactor = Math.max(correctionFactor, params.minDiffCorrFact);
-  locals.difficulty = Math.max(
-    currRecalcBlock.difficulty * correctionFactor,
-    params.initBlkDiff
-  ).toFixed(4); // new difficulty, max 4 decimal places
+  locals.difficulty =
+    Math.round(
+      (Math.max(currRecalcBlock.difficulty * correctionFactor, params.initBlkDiff) +
+        Number.EPSILON) *
+        10000
+    ) / 10000; // new difficulty, max 4 decimal places
 
   console.log(`recalculating diff: 
   timeDiff: ${timeDiff}

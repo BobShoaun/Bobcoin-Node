@@ -6,6 +6,7 @@ import {
 } from "../models/index.js";
 
 import { validatedTransaction } from "./blockcrypto.js";
+import { getMempoolUtxos } from "../helpers/utxo.helper.js";
 
 import BlockCrypto from "blockcrypto";
 const { RESULT } = BlockCrypto;
@@ -37,7 +38,8 @@ export const getTransaction = async (locals, hash) => {
 
 const getMempoolTxInfo = (locals, transaction) => {
   const inputs = transaction.inputs.map(input => {
-    const utxo = locals.utxos.find(
+    const mempoolUtxos = getMempoolUtxos(locals.mempool);
+    const utxo = [...locals.utxos, ...mempoolUtxos].find(
       utxo => utxo.txHash === input.txHash && utxo.outIndex === input.outIndex
     );
     if (!utxo) throw Error("Invalid: utxo not found.");
