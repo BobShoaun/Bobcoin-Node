@@ -7,6 +7,7 @@ import BlockCrypto from "blockcrypto";
 import { recaptchaSecretKey } from "../config.js";
 
 import { getUtxosFactoringMempool } from "../helpers/utxo.helper.js";
+import { getMempoolUtxos } from "../controllers/utxo.controller.js";
 import { faucetDonateAmount, faucetFeeAmount, faucetSecretKey, faucetCooldown } from "../config.js";
 import { addTransaction } from "../middlewares/transaction.middleware.js";
 import axios from "axios";
@@ -28,9 +29,9 @@ const router = Express.Router();
 const createSimpleTransaction = (locals, senderSecretKey, recipientAddress, amount, fee) => {
   const { pk: senderPublicKey, address: senderAddress } = getKeys(params, senderSecretKey);
 
-  const utxos = getUtxosFactoringMempool(locals.utxos, locals.mempool, senderAddress);
-  console.log(utxos);
-  // return;
+  // TODO: use new version in the future when blockchain reorg code is fixed
+  // const utxos = getUtxosFactoringMempool(locals.utxos, locals.mempool, senderAddress);
+  const utxos = getMempoolUtxos(locals, senderAddress);
 
   // pick utxos
   let inputAmount = 0;

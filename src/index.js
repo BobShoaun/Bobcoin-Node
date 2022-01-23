@@ -58,7 +58,6 @@ app.get("/", (req, res) => {
 app.use(handlerErrors);
 
 app.locals.socket = io;
-app.locals.hello = "HELOO";
 app.locals.headBlock = null;
 app.locals.unconfirmedBlocks = []; // sorted by descending height
 app.locals.mempool = []; // mempool as of headblock, recalc with reorg
@@ -66,7 +65,7 @@ app.locals.utxos = []; // utxos as of headblock, recalc with reorg
 app.locals.difficulty = params.initBlkDiff;
 
 (async function () {
-  console.log("Starting Bobcoin Node...");
+  console.log("Starting Bobcoin Node on:", network);
   try {
     // mongodb connection
     await mongoose.connect(atlasURI, {
@@ -75,7 +74,7 @@ app.locals.difficulty = params.initBlkDiff;
       useUnifiedTopology: true,
       useFindAndModify: false,
     });
-    console.log("MongoDB database connection established to: ", network);
+    console.log("MongoDB database connection established");
 
     // await resetMigration();
     // await phase1();
