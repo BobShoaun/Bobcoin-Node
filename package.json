@@ -4,8 +4,7 @@
   "description": "Node which hosts and synchronizes a copy of the entire Bobcoin blockchain.",
   "main": "src/index.js",
   "scripts": {
-    "dev": "nodemon --exec ts-node src/index.ts",
-    "dev:test": "nodemon --exec ts-node src/test.ts",
+    "dev": "nodemon src/index.ts",
     "start": "node src/index.js"
   },
   "repository": {
