@@ -11,8 +11,9 @@ import blockRouter from "./routes/block.route";
 import transactionRouter from "./routes/transaction.route";
 import utxoRouter from "./routes/utxo.route";
 import addressRouter from "./routes/address.route";
-import { checkDatabaseConn } from "./middlewares/mongo.middleware";
+import mineRouter from "./routes/mine.route";
 
+import { checkDatabaseConn } from "./middlewares/mongo.middleware";
 import { BlocksInfo } from "./models";
 import { recalculateCache } from "./helpers/general.helper";
 
@@ -29,6 +30,7 @@ app.use(blockRouter);
 app.use(transactionRouter);
 app.use(utxoRouter);
 app.use(addressRouter);
+app.use(mineRouter);
 
 app.get("/", (_, res) => res.send("Hello from Bobcoin Node API"));
 app.all("*", (_, res) => res.sendStatus(404));
@@ -42,7 +44,7 @@ const setup = async () => {
 
 (async function () {
   const welcomeText = fs.readFileSync(path.join(__dirname, "..", "..", "welcome.txt"), "utf8");
-  console.log("Starting Bobcoin Node (NEW) v1.0.1");
+  console.log(`Starting Bobcoin Node v${process.env.npm_package_version}`);
   console.log(welcomeText);
   console.log("Network:", network);
   try {

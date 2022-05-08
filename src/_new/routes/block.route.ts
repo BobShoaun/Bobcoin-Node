@@ -68,7 +68,7 @@ router.post("/block", async (req, res) => {
   if (!isValid) return res.status(400).send("Block is invalid");
 
   // const blockInfo = structuredClone(block);
-  const blockInfo = new BlockInfo(block);
+  const blockInfo = new BlocksInfo(block);
 
   const headBlock = req.app.locals.headBlock;
 
@@ -136,6 +136,9 @@ router.post("/block", async (req, res) => {
 
   // populate transaction infos
   await updateBlockInfo(blockInfo);
+
+  // add to raw blocks
+  // await Blocks.create(block);
 
   res.send(blockInfo);
 });
