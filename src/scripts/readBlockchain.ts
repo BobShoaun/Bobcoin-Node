@@ -5,6 +5,8 @@ import fs from "fs";
 import mongoose from "mongoose";
 import { atlasURI, network } from "../config";
 
+import { Block } from "../_new/models/index";
+
 const { calculateBlockHash } = BlockCrypto;
 
 const filePath = process.argv[2] ?? "./output.json";
@@ -26,7 +28,7 @@ for (let i = 0; i < blocks.length; i++) {
 }
 
 // find headblock as earlist highest block
-const highest = blocks[0].height;
+const highest = blocks[0].height; // highest block is first
 let headBlock = blocks[0];
 for (const block of blocks) {
   if (block.height !== highest) break;
@@ -48,66 +50,63 @@ for (let i = 0; i < headBlock.height + 1; i++) {
   process.exit();
 }
 
-// new block schema
-// const transactionSchema = new mongoose.Schema(
-//   {
-//     hash: { type: String, required: true },
-//     timestamp: { type: Number, required: true },
-//     version: { type: String, required: true },
-//     inputs: [
-//       {
-//         txHash: { type: String, required: true },
-//         outIndex: { type: Number, required: true },
-//         publicKey: { type: String, required: true },
-//         signature: { type: String, required: true },
-//         _id: false,
-//       },
-//     ],
-//     outputs: [
-//       {
-//         address: { type: String, required: true },
-//         amount: { type: Number, required: true },
-//         _id: false,
-//       },
-//     ],
-//   },
-//   {
-//     versionKey: false,
-//     _id: false,
-//   }
-// );
+let utxos = [];
 
-// const blockSchema = new mongoose.Schema(
-//   {
-//     valid: { type: Boolean, required: true, default: false },
-//     height: { type: Number, required: true },
-//     hash: { type: String, required: true, unique: true },
-//     previousHash: { type: String },
-//     timestamp: { type: Number, required: true },
-//     version: { type: String, required: true },
-//     difficulty: { type: Number, required: true },
-//     nonce: { type: Number, required: true },
-//     merkleRoot: { type: String, required: true },
-//     transactions: [transactionSchema],
-//   },
-//   {
-//     versionKey: false,
-//   }
-// );
+// construct utxo set
+for (let i = 0; i < headBlock.height + 1; i++) {
+  for (const transaction of validBlocks[i].transactions) {
+    // remove inputs from utxos
+    for (const input of transaction.inputs) {
+      const utxoIndex = utxos.findIndex(
+        utxo => utxo.txHash === input.txHash && utxo.outIndex === input.outIndex
+      );
+      if (utxoIndex === -1) {
+        console.error("utxo does not exist on valid block!");
+        process.exit();
+      }
+      const utxo = utxos[utxoIndex];
+      input.address = utxo.address;
+      input.amount = utxo.amount;
 
-// const Block = mongoose.model("new blocks", blockSchema);
+      for (const block of validBlocks) {
+        for (const tx of block.transactions) {
+          if (tx.hash !== utxo.txHash) continue;
+          tx.outputs[utxo.outIndex].txHash = transaction.hash; // record spending tx in output
+        }
+      }
 
-// (async function () {
-//   await mongoose.connect(atlasURI, {
-//     useNewUrlParser: true,
-//     useCreateIndex: true,
-//     useUnifiedTopology: true,
-//     useFindAndModify: false,
-//   });
-//   console.log("MongoDB database connection established to: ", network);
+      utxos.splice(utxoIndex, 1);
+    }
 
-//   await Block.deleteMany();
-//   await Block.insertMany(blocks);
-//   mongoose.connection.close();
-//   console.log("updated db with blocks");
-// })();
+    // add outputs to utxos
+    for (let j = 0; j < transaction.outputs.length; j++) {
+      const output = transaction.outputs[j];
+      utxos.push({
+        txHash: transaction.hash,
+        outIndex: j,
+        address: output.address,
+        amount: output.amount,
+      });
+    }
+  }
+}
+
+console.log("utxos count", utxos.length);
+
+// process.exit();
+
+// add to db
+(async function () {
+  await mongoose.connect(atlasURI, {
+    useNewUrlParser: true,
+    useCreateIndex: true,
+    useUnifiedTopology: true,
+    useFindAndModify: false,
+  });
+  console.log("MongoDB database connection established to: ", network);
+
+  await Block.deleteMany();
+  await Block.insertMany(blocks);
+  mongoose.connection.close();
+  console.log("updated db with blocks");
+})();
