@@ -1,16 +1,17 @@
 // @ts-nocheck
 import { Router } from "express";
-import { Block } from "../models";
+import { BlocksInfo, Utxos } from "../models";
 
 const router = Router();
 
 router.get("/utxos", async (req, res) => {
-  res.send(req.app.locals.utxos);
+  const utxos = await Utxos.find({}, { _id: false });
+  res.send(utxos);
 });
 
 router.get("/utxo/:address", async (req, res) => {
   const { address } = req.params;
-  const utxos = req.app.locals.utxos.filter(utxo => utxo.address === address);
+  const utxos = await Utxos.find({ address }, { _id: false });
   res.send(utxos);
 });
 

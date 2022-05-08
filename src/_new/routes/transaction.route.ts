@@ -1,13 +1,13 @@
 // @ts-nocheck
 import { Router } from "express";
-import { Block } from "../models";
+import { BlocksInfo } from "../models";
 
 const router = Router();
 
 router.get("/transaction/:hash", async (req, res) => {
   const { hash } = req.params;
 
-  const txBlock = await Block.findOne(
+  const txBlock = await BlocksInfo.findOne(
     { "transactions.hash": hash },
     { height: 1, valid: 1, hash: 1, "transactions.$": 1 }
   ).lean();

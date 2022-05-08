@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { Schema } from "mongoose";
 
-const transactionSchema = new Schema(
+const transactionInfoSchema = new Schema(
   {
     hash: { type: String, required: true },
     timestamp: { type: Number, required: true },
@@ -12,6 +12,8 @@ const transactionSchema = new Schema(
         outIndex: { type: Number, required: true },
         publicKey: { type: String, required: true },
         signature: { type: String, required: true },
+        address: { type: String, required: true }, // info
+        amount: { type: Number, required: true }, // info
         _id: false,
       },
     ],
@@ -19,6 +21,7 @@ const transactionSchema = new Schema(
       {
         address: { type: String, required: true },
         amount: { type: Number, required: true },
+        txHash: { type: String }, // info, for if tx is spent
         _id: false,
       },
     ],
@@ -29,8 +32,9 @@ const transactionSchema = new Schema(
   }
 );
 
-const blockSchema = new Schema(
+const blockInfoSchema = new Schema(
   {
+    valid: { type: Boolean, required: true, default: false }, // info
     height: { type: Number, required: true },
     hash: { type: String, required: true, unique: true },
     previousHash: { type: String },
@@ -39,11 +43,11 @@ const blockSchema = new Schema(
     difficulty: { type: Number, required: true },
     nonce: { type: Number, required: true },
     merkleRoot: { type: String, required: true },
-    transactions: [transactionSchema],
+    transactions: [transactionInfoSchema],
   },
   {
     versionKey: false,
   }
 );
 
-export default blockSchema;
+export default blockInfoSchema;

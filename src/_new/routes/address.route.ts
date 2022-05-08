@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { Router } from "express";
-import { Block } from "../models";
+import { BlocksInfo } from "../models";
 
 const router = Router();
 
@@ -10,7 +10,7 @@ router.get("/address/info/:address", async (req, res) => {
   const numUtxos = utxos.length;
   const balance = utxos.reduce((total, utxo) => total + utxo.amount, 0);
 
-  const txBlocks = await Block.find(
+  const txBlocks = await BlocksInfo.find(
     {
       $or: [
         { "transactions.inputs.address": address },
