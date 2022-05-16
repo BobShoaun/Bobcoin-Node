@@ -1,8 +1,8 @@
 // @ts-nocheck
 import { Router } from "express";
 import { Blocks, BlocksInfo, Utxos, Mempool } from "../models";
-import { RESULT } from "blockcrypto";
-// const { RESULT } = BlockCrypto;
+import { validateBlock } from "../helpers/blockcrypto.ts";
+import { VCODE } from "../helpers/validation-codes.ts";
 
 const router = Router();
 
@@ -67,8 +67,8 @@ router.post("/block", async (req, res) => {
   if (!block) return res.sendStatus(400);
 
   // validate block
-  const isValid = true;
-  if (!isValid) return res.status(400).send("Block is invalid");
+  const validation = await validateBlock(block);
+  if (validation.code !== VCODE.VALID) return res.status(400).send({ validation, block });
 
   // const blockInfo = structuredClone(block);
   const blockInfo = new BlocksInfo(block);
@@ -143,7 +143,7 @@ router.post("/block", async (req, res) => {
   // add to raw blocks
   // await Blocks.create(block);
 
-  res.send(blockInfo);
+  res.send({ validation, blockInfo });
 });
 
 export default router;

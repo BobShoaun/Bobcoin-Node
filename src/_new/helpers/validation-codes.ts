@@ -19,6 +19,7 @@ export const VCODE = {
   TX08: 108,
   TX09: 109,
   TX10: 110,
+  TX11: 111,
 
   CB00: 200,
   CB01: 201,
@@ -82,6 +83,8 @@ export const mapVCode = (code, ...args) => {
       return { code, msg: "output amount is negative or zero." };
     case VCODE.TX10:
       return { code, msg: `input is ${args[0]} and output is ${args[1]}` };
+    case VCODE.TX11:
+      return { code, msg: `input ${args[0]}:${args[1]} already spent.` };
 
     // case VCODE.TX07:
     //   return { code, msg: "more than one sender" };
@@ -121,5 +124,8 @@ export const mapVCode = (code, ...args) => {
     // valid
     case VCODE.VALID:
       return { code, msg: "valid!" };
+
+    default:
+      console.log("ERROR, invalid code");
   }
 };

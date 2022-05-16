@@ -146,7 +146,6 @@ const validateBlockchain = blocks => {
       address: coinbaseTx.outputs[0].address,
       amount: coinbaseAmt,
     });
-
     // ---- end coinbase tx ----
 
     const nextBlocks =

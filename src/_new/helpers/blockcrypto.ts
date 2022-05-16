@@ -18,6 +18,34 @@ import {
 import { Blocks, BlocksInfo, Utxos, Mempool } from "../models";
 import { mapVCode, VCODE } from "./validation-codes";
 
+// calculate difficulty for current block
+export const calculateDifficulty = async (height, previousHash) => {
+  const offset = (height - 1) % params.diffRecalcHeight;
+  const currRecalcHeight = height - 1 - offset;
+  const prevRecalcHeight = currRecalcHeight - params.diffRecalcHeight;
+
+  let currRecalcBlock = { previousHash };
+  do currRecalcBlock = await Blocks.findOne({ hash: currRecalcBlock.previousHash }).lean();
+  while (currRecalcBlock.height !== currRecalcHeight);
+
+  let prevRecalcBlock = currRecalcBlock;
+  do prevRecalcBlock = await Blocks.findOne({ hash: prevRecalcBlock.previousHash }).lean();
+  while (prevRecalcBlock.height !== prevRecalcHeight);
+
+  const timeDiff = (currRecalcBlock.timestamp - prevRecalcBlock.timestamp) / 1000; // divide to get seconds
+  const targetTimeDiff = params.diffRecalcHeight * params.targBlkTime; // in seconds
+  let correctionFactor = targetTimeDiff / timeDiff;
+  correctionFactor = Math.min(correctionFactor, params.maxDiffCorrFact); // clamp correctionfactor
+  correctionFactor = Math.max(correctionFactor, params.minDiffCorrFact);
+  return (
+    Math.round(
+      (Math.max(currRecalcBlock.difficulty * correctionFactor, params.initBlkDiff) +
+        Number.EPSILON) *
+        10000
+    ) / 10000
+  ); // new difficulty, max 4 decimal places
+};
+
 export const validateBlock = async block => {
   if (await Blocks.exists({ hash: block.hash })) return mapVCode(VCODE.BC04); // already in collection
   const previousBlock = await Blocks.findOne({ hash: block.previousHash });
@@ -32,87 +60,90 @@ export const validateBlock = async block => {
   if (block.merkleRoot !== calculateMerkleRoot(block.transactions.map(tx => tx.hash)))
     return mapVCode(VCODE.BK06); // "invalid merkle root"
 
-  const offset = block.height % params.diffRecalcHeight;
-
-  if (block.difficulty !== locals.difficulty) return result(RESULT.BK04); // invalid difficulty
+  const difficulty = await calculateDifficulty(block.height, block.previousHash);
+  if (block.difficulty !== difficulty) return mapVCode(VCODE.BK04, difficulty, block.difficulty); // invalid difficulty
 
   const hashTarget = calculateHashTarget(params, block);
   const blockHash = hexToBigInt(block.hash);
-  if (blockHash > hashTarget) return result(RESULT.BK05, [hashTarget]); // block hash not within target
+  if (blockHash > hashTarget) return mapVCode(VCODE.BK07, hashTarget); // block hash not within target
 
-  const utxos = [...locals.utxos];
   let blkTotalInput = 0;
   let blkTotalOutput = 0;
 
   // ----- transactions -----
-
   for (let i = 1; i < block.transactions.length; i++) {
     const transaction = block.transactions[i];
-    if (!transaction.inputs.length || !transaction.outputs.length) return result(RESULT.TX00);
-    if (!transaction.version || !transaction.timestamp) return result(RESULT.TX02);
-    if (transaction.hash !== calculateTransactionHash(transaction)) return result(RESULT.TX01); // hash is invalid
+    if (!transaction.inputs.length) return mapVCode(VCODE.TX00);
+    if (!transaction.outputs.length) return mapVCode(VCODE.TX01);
+    if (!transaction.timestamp) return mapVCode(VCODE.TX02);
+    if (!transaction.version) return mapVCode(VCODE.TX03);
+    if (transaction.hash !== calculateTransactionHash(transaction)) return mapVCode(VCODE.TX04); // hash is invalid
 
     const preImage = calculateTransactionPreImage(transaction);
 
     let txTotalInput = 0;
     for (const input of transaction.inputs) {
-      const utxoIdx = utxos.findIndex(
-        utxo => utxo.txHash === input.txHash && utxo.outIndex === input.outIndex
-      );
-      if (utxoIdx < 0) return result(RESULT.TX03, [input.txHash, input.outIndex]);
+      // find utxo
+      let utxo = null;
+      let prevBlock = block;
+      outer: while (prevBlock) {
+        prevBlock = await Blocks.findOne({ hash: prevBlock.previousHash }).lean();
+        if (!prevBlock) return mapVCode(VCODE.TX05, input.txHash, input.outIndex); // utxo not found, got to genesis block
+        for (const tx of prevBlock.transactions) {
+          for (const _input of tx.inputs) {
+            if (_input.txHash === input.txHash && _input.outIndex === input.outIndex)
+              return mapVCode(VCODE.TX11, input.txHash, input.outIndex);
+          }
+          if (tx === input.txHash) {
+            utxo = tx.outputs[input.outIndex];
+            break outer;
+          }
+        }
+      }
 
-      if (utxos[utxoIdx].address !== getAddressFromPKHex(params, input.publicKey))
-        return result(RESULT.TX04);
+      if (utxo.address !== getAddressFromPKHex(params, input.publicKey))
+        return mapVCode(VCODE.TX06);
+      if (!isSignatureValid(input.signature, input.publicKey, preImage))
+        return mapVCode(VCODE.TX07); // signature not valid
 
-      if (!isSignatureValid(input.signature, input.publicKey, preImage)) return result(RESULT.TX08); // signature not valid
-
-      txTotalInput += utxos[utxoIdx].amount;
-
-      // remove input from utxos
-      utxos.splice(utxoIdx, 1);
+      txTotalInput += utxo.amount;
     }
 
     let txTotalOutput = 0;
     for (let j = 0; j < transaction.outputs.length; j++) {
-      if (!isAddressValid(params, transaction.outputs[j].address)) return result(RESULT.TX05);
-      if (transaction.outputs[j].amount <= 0) return result(RESULT.TX09); // output amount invalid
+      const address = transaction.outputs[j].address;
+      const amount = transaction.outputs[j].amount;
+      if (!isAddressValid(params, address)) return mapVCode(VCODE.TX08);
+      if (amount <= 0) return mapVCode(VCODE.TX09); // output amount invalid
 
-      txTotalOutput += transaction.outputs[j].amount;
-
-      // add output to utxos
-      utxos.push({
-        txHash: transaction.hash,
-        outIndex: j,
-        address: transaction.outputs[j].address,
-        amount: transaction.outputs[j].amount,
-      });
+      txTotalOutput += amount;
     }
 
-    if (txTotalInput < txTotalOutput) return result(RESULT.TX06, [txTotalInput, txTotalOutput]);
+    if (txTotalInput < txTotalOutput) return mapVCode(VCODE.TX10, txTotalInput, txTotalOutput);
 
     blkTotalInput += txTotalInput;
     blkTotalOutput += txTotalOutput;
   }
-
   // ----- end transactions -----
 
   // ---- coinbase transaction ----
   const coinbaseTx = block.transactions[0];
-  if (!coinbaseTx.version || !coinbaseTx.timestamp) return result(RESULT.CB01);
-  if (coinbaseTx.inputs.length) return result(RESULT.CB02); // coinbase must not have inputs
-  if (coinbaseTx.outputs.length !== 1) return result(RESULT.CB03); // wrong output length
-  if (coinbaseTx.hash !== calculateTransactionHash(coinbaseTx)) return result(RESULT.CB00); // hash is invalid
-  if (!isAddressValid(params, coinbaseTx.outputs[0].address)) return result(RESULT.CB04); // miner address invalid
+  if (!coinbaseTx.timestamp) return mapVCode(VCODE.CB00);
+  if (!coinbaseTx.version) return mapVCode(VCODE.CB01);
+  if (coinbaseTx.inputs.length) return mapVCode(VCODE.CB02); // coinbase must not have inputs
+  if (coinbaseTx.outputs.length !== 1) return mapVCode(VCODE.CB03); // wrong output length
+  if (coinbaseTx.hash !== calculateTransactionHash(coinbaseTx)) return mapVCode(VCODE.CB04); // hash is invalid
+  if (!isAddressValid(params, coinbaseTx.outputs[0].address)) return mapVCode(VCODE.CB05); // miner address invalid
 
   const coinbaseAmt = coinbaseTx.outputs[0].amount;
-  if (!coinbaseAmt) return result(RESULT.CB06); // output amount invalid
+  if (!coinbaseAmt) return mapVCode(VCODE.CB06); // output amount invalid
   const fee = blkTotalInput - blkTotalOutput;
   const blockReward = calculateBlockReward(params, block.height);
-  if (coinbaseAmt > fee + blockReward) return result(RESULT.CB05, [coinbaseAmt, fee + blockReward]); // coinbase amt larger than allowed
-
+  if (coinbaseAmt !== fee + blockReward)
+    return mapVCode(VCODE.CB07, fee + blockReward, coinbaseAmt); // coinbase amt larger than allowed
   // ---- end coinbase tx ----
 
-  return result(RESULT.VALID);
+  return mapVCode(VCODE.VALID); // valid!
 };
 
 export const validateCandidateBlock = block => {};

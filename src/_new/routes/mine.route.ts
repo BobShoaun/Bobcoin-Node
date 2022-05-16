@@ -14,6 +14,8 @@ import {
   RESULT,
 } from "blockcrypto";
 
+import { validateBlock, calculateDifficulty } from "../helpers/blockcrypto.ts";
+
 const router = Router();
 
 router.get("/mine/info", async (req, res) => {
@@ -56,22 +58,27 @@ router.post("/mine/candidate-block", async (req, res) => {
   const output = createOutput(miner, calculateBlockReward(params, previousBlock.height + 1) + fees);
   const coinbase = createTransaction(params, [], [output]);
   coinbase.hash = calculateTransactionHash(coinbase);
-  const block = createBlock(params, previousBlock, [coinbase, ...transactions], 1); // TODO: set difficulty
-  const target = bigIntToHex64(calculateHashTarget(params, block));
 
-  // const validation = validateCandidateBlock(locals, block);
-  const validation = {};
+  try {
+    const block = await createBlock(params, previousBlock, [coinbase, ...transactions]);
+    const target = bigIntToHex64(calculateHashTarget(params, block));
 
-  res.send({ block, target, validation });
+    // const validation = validateCandidateBlock(locals, block);
+    const validation = {};
+
+    res.send({ block, target, validation });
+  } catch (e) {
+    return res.status(400).send(e);
+  }
 });
 
-const createBlock = (params, previousBlock, transactions, difficulty) => ({
+const createBlock = async (params, previousBlock, transactions) => ({
   height: previousBlock.height + 1,
   previousHash: previousBlock.hash,
   transactions,
   timestamp: Date.now(),
   version: params.version,
-  difficulty,
+  difficulty: await calculateDifficulty(previousBlock.height + 1, previousBlock.hash),
   merkleRoot: calculateMerkleRoot(transactions.map(tx => tx.hash)),
   nonce: 0,
 });
