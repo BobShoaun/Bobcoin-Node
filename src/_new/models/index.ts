@@ -9,4 +9,4 @@ import transactionSchema from "./transaction.model";
 export const Blocks = model("blocks", blockSchema);
 export const BlocksInfo = model("blocks info", blockInfoSchema);
 export const Utxos = model("utxos", utxoSchema);
-export const Mempool = model("mempool", transactionSchema);
+export const Mempool = model("mempool transactions", transactionSchema);

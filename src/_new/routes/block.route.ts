@@ -55,6 +55,9 @@ const updateBlockInfo = async blockInfo => {
         amount: output.amount,
       });
     }
+
+    // remove tx from mempool
+    await Mempool.deleteOne({ hash: transaction.hash });
   }
   await blockInfo.save();
 };
@@ -100,7 +103,7 @@ router.post("/block", async (req, res) => {
     // undo utxo history, starting from headBlock until common ancestor
     currBlockHash = headBlock.hash;
     while (currBlockHash) {
-      currBlock = await BlocksInfo.findOne({ hash: currBlockHash });
+      const currBlock = await BlocksInfo.findOne({ hash: currBlockHash });
 
       currBlock.valid = false;
       for (const transaction of [...currBlock.transactions].reverse()) {

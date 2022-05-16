@@ -5,6 +5,7 @@ import http from "http";
 import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
+import { Server } from "socket.io";
 import { atlasURI, network, port } from "../config";
 
 import blockRouter from "./routes/block.route";
@@ -16,6 +17,7 @@ import mineRouter from "./routes/mine.route";
 import { checkDatabaseConn } from "./middlewares/mongo.middleware";
 import { BlocksInfo } from "./models";
 import { recalculateCache } from "./helpers/general.helper";
+import params from "./params";
 
 const app = express();
 const server = http.createServer(app);
@@ -59,7 +61,24 @@ const setup = async () => {
   } catch (e) {
     console.error("could not connect to mongodb:", e);
   }
+
   // await recalculateCache();
   await setup();
+
+  const io = new Server(server, { cors: { origin: "*" } });
+
+  io.on("connection", async socket => {
+    console.log("a client connected.");
+
+    socket.on("disconnect", () => {
+      console.log("a client disconnected.");
+    });
+
+    socket.emit("initialize", {
+      params,
+      headBlock: app.locals.headBlock,
+    });
+  });
+
   server.listen(port, () => console.log("\nBobcoin Node listening on port:", port));
 })();
