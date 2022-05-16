@@ -46,7 +46,8 @@ export const calculateDifficulty = async (height, previousHash) => {
   ); // new difficulty, max 4 decimal places
 };
 
-export const validateBlock = async block => {
+// validate without hash
+export const validateCandidateBlock = async block => {
   if (await Blocks.exists({ hash: block.hash })) return mapVCode(VCODE.BC04); // already in collection
   const previousBlock = await Blocks.findOne({ hash: block.previousHash });
   if (!previousBlock) return mapVCode(VCODE.BC01); // prev block not found, TODO: this is not really an error, should prompt node to search for previous block first.
@@ -56,16 +57,11 @@ export const validateBlock = async block => {
   if (!block.timestamp) return mapVCode(VCODE.BK01);
   if (!block.version) return mapVCode(VCODE.BK02);
   if (!block.transactions.length) return mapVCode(VCODE.BK03); // must have at least 1 tx (coinbase)
-  if (block.hash !== calculateBlockHash(block)) return mapVCode(VCODE.BK05); // "invalid block hash";
   if (block.merkleRoot !== calculateMerkleRoot(block.transactions.map(tx => tx.hash)))
     return mapVCode(VCODE.BK06); // "invalid merkle root"
 
   const difficulty = await calculateDifficulty(block.height, block.previousHash);
   if (block.difficulty !== difficulty) return mapVCode(VCODE.BK04, difficulty, block.difficulty); // invalid difficulty
-
-  const hashTarget = calculateHashTarget(params, block);
-  const blockHash = hexToBigInt(block.hash);
-  if (blockHash > hashTarget) return mapVCode(VCODE.BK07, hashTarget); // block hash not within target
 
   let blkTotalInput = 0;
   let blkTotalOutput = 0;
@@ -146,4 +142,13 @@ export const validateBlock = async block => {
   return mapVCode(VCODE.VALID); // valid!
 };
 
-export const validateCandidateBlock = block => {};
+export const validateBlock = async block => {
+  const result = await validateCandidateBlock(block);
+
+  if (block.hash !== calculateBlockHash(block)) return mapVCode(VCODE.BK05); // "invalid block hash";
+  const hashTarget = calculateHashTarget(params, block);
+  const blockHash = hexToBigInt(block.hash);
+  if (blockHash > hashTarget) return mapVCode(VCODE.BK07, hashTarget); // block hash not within target
+
+  return result;
+};

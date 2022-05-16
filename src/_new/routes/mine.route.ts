@@ -14,7 +14,7 @@ import {
   RESULT,
 } from "blockcrypto";
 
-import { validateBlock, calculateDifficulty } from "../helpers/blockcrypto.ts";
+import { validateCandidateBlock, calculateDifficulty } from "../helpers/blockcrypto.ts";
 
 const router = Router();
 
@@ -59,17 +59,15 @@ router.post("/mine/candidate-block", async (req, res) => {
   const coinbase = createTransaction(params, [], [output]);
   coinbase.hash = calculateTransactionHash(coinbase);
 
-  try {
-    const block = await createBlock(params, previousBlock, [coinbase, ...transactions]);
-    const target = bigIntToHex64(calculateHashTarget(params, block));
+  // try {
+  const block = await createBlock(params, previousBlock, [coinbase, ...transactions]);
+  const target = bigIntToHex64(calculateHashTarget(params, block));
 
-    // const validation = validateCandidateBlock(locals, block);
-    const validation = {};
-
-    res.send({ block, target, validation });
-  } catch (e) {
-    return res.status(400).send(e);
-  }
+  const validation = await validateCandidateBlock(block);
+  res.send({ validation, block, target });
+  // } catch (e) {
+  //   return res.status(400).send(e);
+  // }
 });
 
 const createBlock = async (params, previousBlock, transactions) => ({

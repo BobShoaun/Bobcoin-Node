@@ -141,7 +141,9 @@ router.post("/block", async (req, res) => {
   await updateBlockInfo(blockInfo);
 
   // add to raw blocks
-  // await Blocks.create(block);
+  await Blocks.create(block);
+
+  console.log("Received and accepted block:", block.hash);
 
   res.send({ validation, blockInfo });
 });

@@ -14,8 +14,6 @@ import {
   getAddressFromPKHex,
   calculateTransactionPreImage,
   isAddressValid,
-  result,
-  RESULT,
   isSignatureValid,
   hexToBigInt,
 } from "blockcrypto";

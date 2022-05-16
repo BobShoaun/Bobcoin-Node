@@ -62,7 +62,7 @@ const setup = async () => {
     console.error("could not connect to mongodb:", e);
   }
 
-  // await recalculateCache();
+  await recalculateCache();
   await setup();
 
   const io = new Server(server, { cors: { origin: "*" } });
