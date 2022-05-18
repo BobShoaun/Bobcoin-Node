@@ -7,47 +7,55 @@ const router = Router();
 router.get("/transactions", async (req, res) => {
   const limit = parseInt(req.query.limit);
   const offset = parseInt(req.query.offset);
-  const txBlocks = await BlocksInfo.find().limit(10);
-  const txs = txBlocks.reduce((txs, block) => [...txs, ...block.transactions], []);
-  res.send(txs);
+
+  const transactions = await BlocksInfo.aggregate([
+    { $unwind: "$transactions" },
+    {
+      $project: {
+        _id: 0,
+        block: {
+          height: "$height",
+          hash: "$hash",
+          valid: "$valid",
+        },
+        transactions: 1,
+      },
+    },
+    { $replaceRoot: { newRoot: { $mergeObjects: ["$transactions", "$$ROOT"] } } },
+    { $project: { transactions: 0 } },
+    { $skip: offset > 0 ? offset : 0 },
+    { $limit: limit > 0 ? limit : Number.MAX_SAFE_INTEGER },
+  ]);
+  res.send(transactions);
 });
 
 router.get("/transaction/:hash", async (req, res) => {
   const { hash } = req.params;
+  const { block } = req.query;
 
-  const txBlock = await BlocksInfo.findOne(
-    { "transactions.hash": hash },
-    { height: 1, valid: 1, hash: 1, "transactions.$": 1 }
-  ).lean();
-  if (!txBlock) return res.sendStatus(404);
+  const transactions = await BlocksInfo.aggregate([
+    { $match: block ? { hash: block } : {} },
+    { $unwind: "$transactions" },
+    {
+      $project: {
+        _id: 0,
+        block: {
+          height: "$height",
+          hash: "$hash",
+          valid: "$valid",
+        },
+        transactions: 1,
+      },
+    },
+    { $replaceRoot: { newRoot: { $mergeObjects: ["$transactions", "$$ROOT"] } } },
+    { $project: { transactions: 0 } },
+    { $match: { hash } },
+  ]);
 
-  //   let status = "invalid";
-  // if (txBlock.valid) status = "confirmed"
+  if (!transactions.length) return res.sendStatus(404);
 
-  const transaction = txBlock.transactions[0];
-  res.send({ ...transaction, blockHeight: txBlock.height, blockHash: txBlock.hash });
-});
-
-router.get("/mempool", async (req, res) => {
-  const transactions = await Mempool.find({}, { _id: false }).lean();
-
-  const validMempool = [];
-  for (const transaction of transactions) {
-    let valid = true;
-    for (const input of transaction.inputs) {
-      const utxo = await Utxos.findOne({ txHash: input.txHash, outIndex: input.outIndex }); // TODO: check from mempool utxo set
-      if (!utxo) {
-        valid = false;
-        break;
-      }
-      input.address = utxo.address;
-      input.amount = utxo.amount;
-    }
-    if (valid) validMempool.push(transaction);
-    else console.log(`txId: ${transaction.hash} is no longer valid.`);
-  }
-
-  res.send(validMempool);
+  const transaction = transactions[0];
+  res.send(transaction);
 });
 
 export default router;

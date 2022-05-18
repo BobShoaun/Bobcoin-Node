@@ -20,9 +20,35 @@ router.get("/blocks", async (req, res) => {
   res.send(blocks);
 });
 
+router.get("/blocks/raw", async (req, res) => {
+  const blocks = await Blocks.find({}, { _id: false });
+  res.send(blocks);
+});
+
 router.get("/block/head", async (req, res) => {
   const headBlock = req.app.locals.headBlock;
   res.send(headBlock);
+});
+
+router.get("/blocks/height/:height", async (req, res) => {
+  const { height } = req.params;
+  const blocks = await BlocksInfo.find({ height }, { _id: false }).sort({ valid: -1 }); // show valid ones first
+  if (!blocks.length) return res.status(404).send(blocks);
+  res.send(blocks);
+});
+
+router.get("/block/:hash", async (req, res) => {
+  const { hash } = req.params;
+  const block = await BlocksInfo.findOne({ hash }, { _id: false });
+  if (!block) return res.sendStatus(404);
+  res.send(block);
+});
+
+router.get("/block/:hash/raw", async (req, res) => {
+  const { hash } = req.params;
+  const block = await Blocks.findOne({ hash }, { _id: false });
+  if (!block) return res.sendStatus(404);
+  res.send(block);
 });
 
 const updateBlockInfo = async blockInfo => {
@@ -144,6 +170,8 @@ router.post("/block", async (req, res) => {
   await Blocks.create(block);
 
   console.log("Received and accepted block:", block.hash);
+
+  // TODO, inform socket clients and propagate to other nodes.
 
   res.send({ validation, blockInfo });
 });

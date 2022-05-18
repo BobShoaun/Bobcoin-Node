@@ -13,6 +13,7 @@ import transactionRouter from "./routes/transaction.route";
 import utxoRouter from "./routes/utxo.route";
 import addressRouter from "./routes/address.route";
 import mineRouter from "./routes/mine.route";
+import mempoolRouter from "./routes/mempool.route";
 
 import { checkDatabaseConn } from "./middlewares/mongo.middleware";
 import { BlocksInfo } from "./models";
@@ -33,6 +34,7 @@ app.use(transactionRouter);
 app.use(utxoRouter);
 app.use(addressRouter);
 app.use(mineRouter);
+app.use(mempoolRouter);
 
 app.get("/", (_, res) => res.send("Hello from Bobcoin Node API"));
 app.all("*", (_, res) => res.sendStatus(404));
@@ -62,7 +64,7 @@ const setup = async () => {
     console.error("could not connect to mongodb:", e);
   }
 
-  await recalculateCache();
+  // await recalculateCache();
   await setup();
 
   const io = new Server(server, { cors: { origin: "*" } });
