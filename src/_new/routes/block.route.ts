@@ -3,6 +3,7 @@ import { Router } from "express";
 import { Blocks, BlocksInfo, Utxos, Mempool } from "../models";
 import { validateBlock } from "../helpers/blockcrypto.ts";
 import { VCODE } from "../helpers/validation-codes.ts";
+import { getMempool } from "../controllers/mempool.controller";
 
 const router = Router();
 
@@ -26,7 +27,9 @@ router.get("/blocks/raw", async (req, res) => {
 });
 
 router.get("/block/head", async (req, res) => {
-  const headBlock = req.app.locals.headBlock;
+  const headBlock = (
+    await BlocksInfo.find({ valid: true }, { _id: 0 }).sort({ height: -1 }).limit(1)
+  )[0];
   res.send(headBlock);
 });
 
@@ -99,14 +102,16 @@ router.post("/block", async (req, res) => {
   // const blockInfo = structuredClone(block);
   const blockInfo = new BlocksInfo(block);
 
-  const headBlock = req.app.locals.headBlock;
+  const headBlock = (
+    await BlocksInfo.find({ valid: true }, { _id: 0 }).sort({ height: -1 }).limit(1)
+  )[0]; // get head block
 
   // not building on best chain, set as invalid / orphaned
   if (blockInfo.height <= headBlock.height) blockInfo.valid = false;
   else if (blockInfo.previousHash === headBlock.hash) {
     // common case
     blockInfo.valid = true;
-    req.app.locals.headBlock = blockInfo; // new head block
+    // req.app.locals.headBlock = blockInfo; // new head block
   } else {
     // blockchain reorg required. fork happened
     const fork = []; // starting from block after common ancestor to block before current new block (new head)
@@ -169,9 +174,17 @@ router.post("/block", async (req, res) => {
   // add to raw blocks
   await Blocks.create(block);
 
+  // TODO: set new head block
+
   console.log("Received and accepted block:", block.hash);
 
   // TODO, inform socket clients and propagate to other nodes.
+  req.app.locals.io.emit("block", {
+    recentValidBlocks: await BlocksInfo.find({ valid: true }, { _id: 0 })
+      .sort({ height: -1 })
+      .limit(10),
+    mempool: await getMempool(),
+  });
 
   res.send({ validation, blockInfo });
 });

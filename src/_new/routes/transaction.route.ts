@@ -58,4 +58,19 @@ router.get("/transaction/:hash", async (req, res) => {
   res.send(transaction);
 });
 
+// confirmed transactions in a block
+router.get("/transactions/count", async (req, res) => {
+  const transactions = await BlocksInfo.aggregate([
+    { $match: { valid: true } },
+    { $unwind: "$transactions" },
+    { $count: "count" },
+  ]);
+  res.send(transactions[0]);
+});
+
+router.post("/transaction", async (req, res) => {
+  const transaction = req.body;
+  res.status(201).send(transaction);
+});
+
 export default router;

@@ -6,7 +6,7 @@ import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
 import { Server } from "socket.io";
-import { atlasURI, network, port } from "../config";
+import { mongoURI, network, port } from "./config";
 
 import blockRouter from "./routes/block.route";
 import transactionRouter from "./routes/transaction.route";
@@ -16,7 +16,8 @@ import mineRouter from "./routes/mine.route";
 import mempoolRouter from "./routes/mempool.route";
 
 import { checkDatabaseConn } from "./middlewares/mongo.middleware";
-import { BlocksInfo } from "./models";
+import { BlocksInfo, Mempool } from "./models";
+import { getMempool } from "./controllers/mempool.controller";
 import { recalculateCache } from "./helpers/general.helper";
 import params from "./params";
 
@@ -39,13 +40,6 @@ app.use(mempoolRouter);
 app.get("/", (_, res) => res.send("Hello from Bobcoin Node API"));
 app.all("*", (_, res) => res.sendStatus(404));
 
-const setup = async () => {
-  const blocks = await BlocksInfo.find().sort({ height: -1 }).lean();
-  const maxHeight = blocks[0].height;
-  const headBlock = blocks.find(block => block.height === maxHeight && block.valid);
-  app.locals.headBlock = headBlock;
-};
-
 (async function () {
   const welcomeText = fs.readFileSync(path.join(__dirname, "..", "..", "welcome.txt"), "utf8");
   console.log(`Starting Bobcoin Node v${process.env.npm_package_version}`);
@@ -53,7 +47,7 @@ const setup = async () => {
   console.log("Network:", network);
   try {
     // mongodb connection
-    await mongoose.connect(atlasURI, {
+    await mongoose.connect(mongoURI, {
       useNewUrlParser: true,
       useCreateIndex: true,
       useUnifiedTopology: true,
@@ -65,10 +59,9 @@ const setup = async () => {
   }
 
   // await recalculateCache();
-  await setup();
 
+  // setup socket io
   const io = new Server(server, { cors: { origin: "*" } });
-
   io.on("connection", async socket => {
     console.log("a client connected.");
 
@@ -78,9 +71,13 @@ const setup = async () => {
 
     socket.emit("initialize", {
       params,
-      headBlock: app.locals.headBlock,
+      recentValidBlocks: await BlocksInfo.find({ valid: true }, { _id: 0 })
+        .sort({ height: -1 })
+        .limit(10),
+      mempool: await getMempool(),
     });
   });
+  app.locals.io = io;
 
   server.listen(port, () => console.log("\nBobcoin Node listening on port:", port));
 })();

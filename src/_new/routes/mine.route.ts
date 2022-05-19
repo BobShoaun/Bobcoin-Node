@@ -10,17 +10,19 @@ import {
   calculateHashTarget,
   bigIntToHex64,
   calculateMerkleRoot,
-  mineGenesisBlock,
   RESULT,
 } from "blockcrypto";
+import { getMempool } from "../controllers/mempool.controller";
 
 import { validateCandidateBlock, calculateDifficulty } from "../helpers/blockcrypto.ts";
 
 const router = Router();
 
 router.get("/mine/info", async (req, res) => {
-  const headBlock = req.app.locals.headBlock;
-  const mempool = [];
+  const headBlock = (
+    await BlocksInfo.find({ valid: true }, { _id: 0 }).sort({ height: -1 }).limit(1)
+  )[0];
+  const mempool = await getMempool();
   res.send({ headBlock, mempool });
 });
 
@@ -29,7 +31,10 @@ router.post("/mine/candidate-block", async (req, res) => {
   const transactions = req.body.transactions ?? [];
   if (!miner) return res.sendStatus(400);
 
-  if (!previousBlock) previousBlock = req.app.locals.headBlock;
+  if (!previousBlock)
+    previousBlock = (
+      await BlocksInfo.find({ valid: true }, { _id: 0 }).sort({ height: -1 }).limit(1)
+    )[0]; // headblock
 
   let totalInput = 0;
   let totalOutput = 0;
