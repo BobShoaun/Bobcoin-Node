@@ -1,15 +1,14 @@
-// @ts-nocheck
-import { Router } from "express";
+import { Router, Request } from "express";
 import { Blocks, BlocksInfo, Utxos, Mempool } from "../models";
-import { validateBlock } from "../helpers/blockcrypto.ts";
-import { VCODE } from "../helpers/validation-codes.ts";
+import { validateBlock } from "../helpers/blockcrypto";
+import { VCODE } from "../helpers/validation-codes";
 import { getMempool } from "../controllers/mempool.controller";
 
 const router = Router();
 
 router.get("/blocks", async (req, res) => {
-  const limit = parseInt(req.query.limit);
-  const height = parseInt(req.query.height);
+  const limit = parseInt(req.query.limit as string);
+  const height = parseInt(req.query.height as string);
 
   const maxHeight = isNaN(height) ? Number.POSITIVE_INFINITY : height;
   const minHeight = isNaN(limit) || isNaN(height) ? Number.NEGATIVE_INFINITY : height - limit; // exclusive
@@ -33,11 +32,27 @@ router.get("/block/head", async (req, res) => {
   res.send(headBlock);
 });
 
-router.get("/blocks/height/:height", async (req, res) => {
+router.get("/blocks/height/:height", async (req: Request<{ height: number }>, res) => {
   const { height } = req.params;
   const blocks = await BlocksInfo.find({ height }, { _id: false }).sort({ valid: -1 }); // show valid ones first
   if (!blocks.length) return res.status(404).send(blocks);
   res.send(blocks);
+});
+
+const getBlockHeights = async (height: number, limit: number) =>
+  await BlocksInfo.aggregate([
+    { $group: { _id: "$height", blocks: { $push: "$$ROOT" } } },
+    { $sort: { _id: -1 } },
+    { $project: { _id: 0, blocks: 1, height: "$_id" } },
+    { $match: { height: { $lte: height } } },
+    { $limit: limit },
+  ]);
+
+router.get("/blocks/heights", async (req, res) => {
+  const height = parseInt(req.query.height as string);
+  const limit = parseInt(req.query.limit as string);
+  const blockHeights = await getBlockHeights(height, limit);
+  res.send(blockHeights);
 });
 
 router.get("/block/:hash", async (req, res) => {
@@ -54,6 +69,7 @@ router.get("/block/:hash/raw", async (req, res) => {
   res.send(block);
 });
 
+// only for valid blocks, not orphaneds ones
 const updateBlockInfo = async blockInfo => {
   for (const transaction of blockInfo.transactions) {
     for (const input of transaction.inputs) {
@@ -107,14 +123,37 @@ router.post("/block", async (req, res) => {
   )[0]; // get head block
 
   // not building on best chain, set as invalid / orphaned
-  if (blockInfo.height <= headBlock.height) blockInfo.valid = false;
-  else if (blockInfo.previousHash === headBlock.hash) {
+  if (blockInfo.height <= headBlock.height) {
+    console.log("adding orphaned block.");
+    blockInfo.valid = false;
+    for (const transaction of blockInfo.transactions) {
+      for (const input of transaction.inputs) {
+        // TODO, trace back till you find utxo.
+        // record spending tx in output
+        const utxoBlock = await BlocksInfo.findOne({
+          "transactions.hash": input.txHash,
+          valid: true,
+        });
+        const output = utxoBlock.transactions.find(tx => tx.hash === input.txHash).outputs[
+          input.outIndex
+        ];
+        // update input info
+        input.address = output.address;
+        input.amount = output.amount;
+      }
+    }
+    await blockInfo.save();
+  } else if (blockInfo.previousHash === headBlock.hash) {
     // common case
     blockInfo.valid = true;
-    // req.app.locals.headBlock = blockInfo; // new head block
+
+    // populate transaction infos
+    await updateBlockInfo(blockInfo);
   } else {
     // blockchain reorg required. fork happened
     const fork = []; // starting from block after common ancestor to block before current new block (new head)
+
+    console.log("fork case");
 
     // find common ancestor
     let commonBlock = null;
@@ -131,45 +170,60 @@ router.post("/block", async (req, res) => {
     }
     fork.reverse();
 
+    console.log("common ancestor:", commonBlock.hash);
+
     // undo utxo history, starting from headBlock until common ancestor
     currBlockHash = headBlock.hash;
     while (currBlockHash) {
       const currBlock = await BlocksInfo.findOne({ hash: currBlockHash });
 
-      currBlock.valid = false;
+      console.log("undoing block:", currBlock.hash);
+
       for (const transaction of [...currBlock.transactions].reverse()) {
-        transaction.outputs.forEach(output => (output.txHash = null)); // clear spent tx output, since its no longer valid chain
+        // transaction.outputs.forEach(output => (output.txHash = null)); // clear spent tx output, since its no longer valid chain
         await Utxos.deleteMany({ txHash: transaction.hash });
-        const utxos = transaction.inputs.map(input => ({
-          txHash: input.txHash,
-          outIndex: input.outIndex,
-          address: input.address,
-          amount: input.amount,
-        }));
-        await Utxos.insertMany(utxos);
+
+        if (transaction.inputs.length) await Utxos.insertMany(transaction.inputs);
       }
 
-      const mempoolTxs = currBlock.transactions.map(tx => tx.inputs.length > 0); // return non coinbase txs back to mempool
-      await Mempool.insertMany(mempoolTxs);
+      console.log("done undoing utxos");
 
+      const mempoolTxs = currBlock.transactions.filter(tx => tx.inputs.length > 0); // return non coinbase txs back to mempool
+      console.log("mempoolTxs", mempoolTxs);
+
+      // remove txHash in outputs for txs return to mempool
+      for (const tx of mempoolTxs) {
+        await BlocksInfo.updateOne(
+          { "transactions.outputs.txHash": tx.hash, valid: true },
+          { "transactions.$.outputs.$[output].txHash": null },
+          { arrayFilters: [{ "output.txHash": tx.hash }] }
+        );
+      }
+
+      await Mempool.insertMany(mempoolTxs, { ordered: false }).catch(err => console.log(err)); // ordered false for ignoring duplicates
+
+      console.log("isnerted back to mempool");
+
+      currBlock.valid = false;
       await currBlock.save();
 
-      if (currBlock.previousHash === commonBlock.hash) {
-        break;
-      }
+      if (currBlock.previousHash === commonBlock.hash) break;
 
       currBlockHash = currBlock.previousHash;
     }
+
+    console.log("done unoding utxos and mempool");
 
     // retrace all forked blocks to valid blocks.
     for (const blockInfo of fork) {
       blockInfo.valid = true;
       await updateBlockInfo(blockInfo);
     }
-  }
 
-  // populate transaction infos
-  await updateBlockInfo(blockInfo);
+    // update new block itself
+    blockInfo.valid = true;
+    await updateBlockInfo(blockInfo);
+  }
 
   // add to raw blocks
   await Blocks.create(block);
@@ -180,9 +234,15 @@ router.post("/block", async (req, res) => {
 
   // TODO, inform socket clients and propagate to other nodes.
   req.app.locals.io.emit("block", {
-    recentValidBlocks: await BlocksInfo.find({ valid: true }, { _id: 0 })
-      .sort({ height: -1 })
-      .limit(10),
+    headBlock: (
+      await BlocksInfo.find({ valid: true }, { _id: 0 }).sort({ height: -1 }).limit(1)
+    )[0],
+    recentValidBlocks: await BlocksInfo.aggregate([
+      { $group: { _id: "$height", blocks: { $push: "$$ROOT" } } },
+      { $sort: { _id: -1 } },
+      { $limit: 10 },
+      { $project: { _id: 0, blocks: 1, height: "$_id" } },
+    ]),
     mempool: await getMempool(),
   });
 

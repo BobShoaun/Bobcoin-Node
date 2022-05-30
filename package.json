@@ -8,7 +8,7 @@
     "dev:new": "nodemon src/_new/index.ts",
     "start": "ts-node src/index.ts",
     "dump": "ts-node src/scripts/dumpBlockchain.ts",
-    "read": "ts-node src/scripts/readBlockchain.ts dumps/testnet.json"
+    "read": "ts-node src/_new/scripts/readBlockchain.ts dumps/testnet.json"
   },
   "repository": {
     "type": "git",

@@ -71,9 +71,15 @@ app.all("*", (_, res) => res.sendStatus(404));
 
     socket.emit("initialize", {
       params,
-      recentValidBlocks: await BlocksInfo.find({ valid: true }, { _id: 0 })
-        .sort({ height: -1 })
-        .limit(10),
+      headBlock: (
+        await BlocksInfo.find({ valid: true }, { _id: 0 }).sort({ height: -1 }).limit(1)
+      )[0],
+      recentValidBlocks: await BlocksInfo.aggregate([
+        { $group: { _id: "$height", blocks: { $push: "$$ROOT" } } },
+        { $sort: { _id: -1 } },
+        { $limit: 10 },
+        { $project: { _id: 0, blocks: 1, height: "$_id" } },
+      ]),
       mempool: await getMempool(),
     });
   });

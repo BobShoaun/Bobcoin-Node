@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Schema } from "mongoose";
 
 const transactionSchema = new Schema(

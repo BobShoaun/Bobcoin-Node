@@ -1,7 +1,12 @@
 // @ts-nocheck
 import mongoose from "mongoose";
-import { atlasURI, network } from "../config";
-import { OrphanedBlock, MatureBlock, UnconfirmedBlock, MempoolTransaction } from "../models/index";
+import { atlasURI, network } from "../../config";
+import {
+  OrphanedBlock,
+  MatureBlock,
+  UnconfirmedBlock,
+  MempoolTransaction,
+} from "../../models/index";
 import fs from "fs";
 
 const filePath = process.argv[2] ?? "./output.json";
@@ -21,7 +26,7 @@ const filePath = process.argv[2] ?? "./output.json";
   const mempool = await MempoolTransaction.find();
   mongoose.connection.close();
 
-  const blocks = [...matureBlocks, ...unconfirmedBlocks, ...orphanedBlocks]; 
+  const blocks = [...matureBlocks, ...unconfirmedBlocks, ...orphanedBlocks];
   blocks.sort((a, b) => a.height - b.height);
   const data = { blocks, mempool };
 

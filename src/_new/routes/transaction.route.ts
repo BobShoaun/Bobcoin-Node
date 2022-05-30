@@ -23,6 +23,7 @@ router.get("/transactions", async (req, res) => {
     },
     { $replaceRoot: { newRoot: { $mergeObjects: ["$transactions", "$$ROOT"] } } },
     { $project: { transactions: 0 } },
+    { $sort: { timestamp: -1 } },
     { $skip: offset > 0 ? offset : 0 },
     { $limit: limit > 0 ? limit : Number.MAX_SAFE_INTEGER },
   ]);
@@ -34,7 +35,7 @@ router.get("/transaction/:hash", async (req, res) => {
   const { block } = req.query;
 
   const transactions = await BlocksInfo.aggregate([
-    { $match: block ? { hash: block } : {} },
+    { $match: block ? { hash: block } : { valid: true } },
     { $unwind: "$transactions" },
     {
       $project: {

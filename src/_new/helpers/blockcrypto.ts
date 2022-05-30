@@ -1,4 +1,3 @@
-// @ts-nocheck
 import params from "../params";
 import {
   calculateBlockReward,
@@ -17,14 +16,25 @@ import {
 
 import { Blocks, BlocksInfo, Utxos, Mempool } from "../models";
 import { mapVCode, VCODE } from "./validation-codes";
+import { Block } from "../models/types";
 
 // calculate difficulty for current block
-export const calculateDifficulty = async (height, previousHash) => {
+export const calculateDifficulty = async (height: number, previousHash: string) => {
   const offset = (height - 1) % params.diffRecalcHeight;
   const currRecalcHeight = height - 1 - offset;
   const prevRecalcHeight = currRecalcHeight - params.diffRecalcHeight;
 
-  let currRecalcBlock = { previousHash };
+  let currRecalcBlock: Block = {
+    previousHash,
+    height: -1,
+    hash: "",
+    timestamp: 0,
+    version: "",
+    difficulty: 0,
+    nonce: 0,
+    merkleRoot: "",
+    transactions: [],
+  };
   do currRecalcBlock = await Blocks.findOne({ hash: currRecalcBlock.previousHash }).lean();
   while (currRecalcBlock.height !== currRecalcHeight);
 
@@ -47,7 +57,7 @@ export const calculateDifficulty = async (height, previousHash) => {
 };
 
 // validate without hash
-export const validateCandidateBlock = async block => {
+export const validateCandidateBlock = async (block: Block) => {
   if (await Blocks.exists({ hash: block.hash })) return mapVCode(VCODE.BC04); // already in collection
   const previousBlock = await Blocks.findOne({ hash: block.previousHash });
   if (!previousBlock) return mapVCode(VCODE.BC01); // prev block not found, TODO: this is not really an error, should prompt node to search for previous block first.
@@ -83,14 +93,14 @@ export const validateCandidateBlock = async block => {
       let utxo = null;
       let prevBlock = block;
       outer: while (prevBlock) {
-        prevBlock = await Blocks.findOne({ hash: prevBlock.previousHash }).lean();
+        prevBlock = (await Blocks.findOne({ hash: prevBlock.previousHash }).lean()) as Block;
         if (!prevBlock) return mapVCode(VCODE.TX05, input.txHash, input.outIndex); // utxo not found, got to genesis block
         for (const tx of prevBlock.transactions) {
           for (const _input of tx.inputs) {
             if (_input.txHash === input.txHash && _input.outIndex === input.outIndex)
-              return mapVCode(VCODE.TX11, input.txHash, input.outIndex);
+              return mapVCode(VCODE.TX11, input.txHash, input.outIndex); // utxo is stxo (spent)
           }
-          if (tx === input.txHash) {
+          if (tx.hash === input.txHash) {
             utxo = tx.outputs[input.outIndex];
             break outer;
           }
@@ -142,7 +152,7 @@ export const validateCandidateBlock = async block => {
   return mapVCode(VCODE.VALID); // valid!
 };
 
-export const validateBlock = async block => {
+export const validateBlock = async (block: Block) => {
   const result = await validateCandidateBlock(block);
 
   if (block.hash !== calculateBlockHash(block)) return mapVCode(VCODE.BK05); // "invalid block hash";

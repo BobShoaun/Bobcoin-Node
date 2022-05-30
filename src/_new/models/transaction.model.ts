@@ -1,9 +1,8 @@
-// @ts-nocheck
 import { Schema } from "mongoose";
 
 const transactionSchema = new Schema(
   {
-    hash: { type: String, required: true },
+    hash: { type: String, required: true, unique: true },
     timestamp: { type: Number, required: true },
     version: { type: String, required: true },
     inputs: [

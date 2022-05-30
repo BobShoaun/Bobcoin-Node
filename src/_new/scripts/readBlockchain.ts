@@ -1,10 +1,9 @@
 // @ts-nocheck
-import BlockCrypto from "blockcrypto";
 import fs from "fs";
 import mongoose from "mongoose";
-import { atlasURI, network } from "../config";
-import { Blocks, Mempool } from "../_new/models/index";
-import { testnetParams, mainnetParams } from "../params";
+import { mongoURI, network } from "../config";
+import { Blocks, Mempool } from "../models";
+import params from "../params";
 import {
   calculateBlockReward,
   calculateTransactionHash,
@@ -18,9 +17,7 @@ import {
   hexToBigInt,
 } from "blockcrypto";
 
-import { VCODE, mapVCode } from "../_new/helpers/validation-codes.ts";
-
-const params = testnetParams;
+import { VCODE, mapVCode } from "../helpers/validation-codes.ts";
 
 const filePath = process.argv[2] ?? "./output.json";
 const { blocks, mempool } = JSON.parse(fs.readFileSync(filePath));
@@ -32,7 +29,8 @@ const validateBlockchain = blocks => {
   const blocksPerHeight = []; // array of array
   for (const block of blocks) {
     if (blocksPerHeight[block.height]) {
-      blocksPerHeight[block.height] = [...blocksPerHeight[block.height], block];
+      blocksPerHeight[block.height].push(block);
+      // blocksPerHeight[block.height] = [...blocksPerHeight[block.height], block];
       continue;
     }
     blocksPerHeight[block.height] = [block];
@@ -273,12 +271,12 @@ console.log(
 
 // console.log("utxos count", utxos.length);
 
-process.exit();
+// process.exit();
 // console.log(mempool);
 
 // add to db
 (async function () {
-  await mongoose.connect(atlasURI, {
+  await mongoose.connect(mongoURI, {
     useNewUrlParser: true,
     useCreateIndex: true,
     useUnifiedTopology: true,

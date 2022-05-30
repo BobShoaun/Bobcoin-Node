@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Router } from "express";
 import { BlocksInfo, Utxos } from "../models";
 import params from "../params";
@@ -14,7 +13,8 @@ import {
 } from "blockcrypto";
 import { getMempool } from "../controllers/mempool.controller";
 
-import { validateCandidateBlock, calculateDifficulty } from "../helpers/blockcrypto.ts";
+import { validateCandidateBlock, calculateDifficulty } from "../helpers/blockcrypto";
+import { Block, Transaction } from "../models/types";
 
 const router = Router();
 
@@ -26,15 +26,16 @@ router.get("/mine/info", async (req, res) => {
   res.send({ headBlock, mempool });
 });
 
-router.post("/mine/candidate-block", async (req, res) => {
-  let { previousBlock, miner } = req.body;
+router.post("/candidate-block", async (req, res) => {
+  const { previousBlockHash, miner } = req.body;
   const transactions = req.body.transactions ?? [];
   if (!miner) return res.sendStatus(400);
 
-  if (!previousBlock)
-    previousBlock = (
-      await BlocksInfo.find({ valid: true }, { _id: 0 }).sort({ height: -1 }).limit(1)
-    )[0]; // headblock
+  const previousBlock = previousBlockHash
+    ? await BlocksInfo.findOne({ hash: previousBlockHash }, { _id: 0 })
+    : (await BlocksInfo.find({ valid: true }, { _id: 0 }).sort({ height: -1 }).limit(1))[0];
+
+  if (!previousBlock) return res.status(404).send("Previous block not found.");
 
   let totalInput = 0;
   let totalOutput = 0;
@@ -75,7 +76,7 @@ router.post("/mine/candidate-block", async (req, res) => {
   // }
 });
 
-const createBlock = async (params, previousBlock, transactions) => ({
+const createBlock = async (params, previousBlock: Block, transactions: Transaction[]) => ({
   height: previousBlock.height + 1,
   previousHash: previousBlock.hash,
   transactions,
@@ -84,6 +85,7 @@ const createBlock = async (params, previousBlock, transactions) => ({
   difficulty: await calculateDifficulty(previousBlock.height + 1, previousBlock.hash),
   merkleRoot: calculateMerkleRoot(transactions.map(tx => tx.hash)),
   nonce: 0,
+  hash: "",
 });
 
 export default router;
