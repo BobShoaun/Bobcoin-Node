@@ -14,10 +14,12 @@ import utxoRouter from "./routes/utxo.route";
 import addressRouter from "./routes/address.route";
 import mineRouter from "./routes/mine.route";
 import mempoolRouter from "./routes/mempool.route";
+import walletRouter from "./routes/wallet.route";
 
 import { checkDatabaseConn } from "./middlewares/mongo.middleware";
 import { BlocksInfo, Mempool } from "./models";
-import { getMempool } from "./controllers/mempool.controller";
+import { getValidMempool } from "./controllers/mempool.controller";
+import { getHeadBlock } from "./controllers/blockchain.controller";
 import { recalculateCache } from "./helpers/general.helper";
 import params from "./params";
 
@@ -36,6 +38,7 @@ app.use(utxoRouter);
 app.use(addressRouter);
 app.use(mineRouter);
 app.use(mempoolRouter);
+app.use(walletRouter);
 
 app.get("/", (_, res) => res.send("Hello from Bobcoin Node API"));
 app.all("*", (_, res) => res.sendStatus(404));
@@ -71,16 +74,8 @@ app.all("*", (_, res) => res.sendStatus(404));
 
     socket.emit("initialize", {
       params,
-      headBlock: (
-        await BlocksInfo.find({ valid: true }, { _id: 0 }).sort({ height: -1 }).limit(1)
-      )[0],
-      recentValidBlocks: await BlocksInfo.aggregate([
-        { $group: { _id: "$height", blocks: { $push: "$$ROOT" } } },
-        { $sort: { _id: -1 } },
-        { $limit: 10 },
-        { $project: { _id: 0, blocks: 1, height: "$_id" } },
-      ]),
-      mempool: await getMempool(),
+      headBlock: await getHeadBlock(),
+      mempool: await getValidMempool(),
     });
   });
   app.locals.io = io;

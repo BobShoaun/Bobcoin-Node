@@ -58,20 +58,20 @@ router.get("/mempool/address/:address", async (req, res) => {
   res.send(transactions);
 });
 
-router.post("/mempool/address", async (req, res) => {
-  const addresses = req.body;
-  if (!addresses) return res.sendStatus(404);
-  const offset = parseInt(req.query.offset);
-  const limit = parseInt(req.query.limit);
+// router.post("/mempool/address", async (req, res) => {
+//   const addresses = req.body;
+//   if (!addresses) return res.sendStatus(404);
+//   const offset = parseInt(req.query.offset);
+//   const limit = parseInt(req.query.limit);
 
-  const transactions = await Mempool.find(
-    { $or: [{ "inputs.address": { $in: addresses } }, { "outputs.address": { $in: addresses } }] },
-    { _id: 0 }
-  )
-    .sort({ timestamp: -1 })
-    .skip(offset ? offset : 0)
-    .limit(limit ? limit : 0);
-  res.send(transactions);
-});
+//   const transactions = await Mempool.find(
+//     { $or: [{ "inputs.address": { $in: addresses } }, { "outputs.address": { $in: addresses } }] },
+//     { _id: 0 }
+//   )
+//     .sort({ timestamp: -1 })
+//     .skip(offset ? offset : 0)
+//     .limit(limit ? limit : 0);
+//   res.send(transactions);
+// });
 
 export default router;

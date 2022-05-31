@@ -1,12 +1,12 @@
-// @ts-nocheck
 import { Router } from "express";
 import { BlocksInfo, Mempool, Utxos } from "../models";
+import { addTransaction } from "../controllers/transaction.controller";
 
 const router = Router();
 
 router.get("/transactions", async (req, res) => {
-  const limit = parseInt(req.query.limit);
-  const offset = parseInt(req.query.offset);
+  const limit = parseInt(req.query.limit as string);
+  const offset = parseInt(req.query.offset as string);
 
   const transactions = await BlocksInfo.aggregate([
     { $unwind: "$transactions" },
@@ -71,7 +71,14 @@ router.get("/transactions/count", async (req, res) => {
 
 router.post("/transaction", async (req, res) => {
   const transaction = req.body;
-  res.status(201).send(transaction);
+  if (!transaction) return res.sendStatus(400);
+
+  try {
+    const validation = await addTransaction(transaction);
+    res.status(201).send(validation);
+  } catch (e) {
+    return res.status(400).send(e);
+  }
 });
 
 export default router;

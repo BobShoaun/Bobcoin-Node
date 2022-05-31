@@ -11,7 +11,7 @@ import {
   calculateMerkleRoot,
   RESULT,
 } from "blockcrypto";
-import { getMempool } from "../controllers/mempool.controller";
+import { getValidMempool } from "../controllers/mempool.controller";
 
 import { validateCandidateBlock, calculateDifficulty } from "../helpers/blockcrypto";
 import { Block, Transaction } from "../models/types";
@@ -22,7 +22,7 @@ router.get("/mine/info", async (req, res) => {
   const headBlock = (
     await BlocksInfo.find({ valid: true }, { _id: 0 }).sort({ height: -1 }).limit(1)
   )[0];
-  const mempool = await getMempool();
+  const mempool = await getValidMempool();
   res.send({ headBlock, mempool });
 });
 

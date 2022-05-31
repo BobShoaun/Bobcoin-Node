@@ -58,7 +58,7 @@ export const calculateDifficulty = async (height: number, previousHash: string) 
 
 // validate without hash
 export const validateCandidateBlock = async (block: Block) => {
-  if (await Blocks.exists({ hash: block.hash })) return mapVCode(VCODE.BC04); // already in collection
+  if (await Blocks.exists({ hash: block.hash })) return mapVCode(VCODE.BC04); // already in blockchain
   const previousBlock = await Blocks.findOne({ hash: block.previousHash });
   if (!previousBlock) return mapVCode(VCODE.BC01); // prev block not found, TODO: this is not really an error, should prompt node to search for previous block first.
   if (block.timestamp < previousBlock.timestamp) return mapVCode(VCODE.BC02);

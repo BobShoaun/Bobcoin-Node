@@ -1,8 +1,14 @@
-// @ts-nocheck
 import { Blocks, BlocksInfo, Utxos, Mempool } from "../models";
+import { TransactionInfo } from "../models/types";
 
-export const getMempool = async () => {
-  const transactions = await Mempool.find({}, { _id: 0 }).lean();
+/**
+ *
+ * @returns sorted valid mempool utxos from latest to earliest
+ */
+export const getValidMempool = async () => {
+  const transactions = (await Mempool.find({}, { _id: 0 })
+    .sort({ timestamp: -1 })
+    .lean()) as TransactionInfo[];
 
   const validMempool = [];
   for (const transaction of transactions) {
@@ -17,8 +23,17 @@ export const getMempool = async () => {
       input.amount = utxo.amount;
     }
     if (valid) validMempool.push(transaction);
-    else console.log(`txId: ${transaction.hash} is no longer valid.`);
+    // else console.log(`txId: ${transaction.hash} is no longer valid.`);
   }
 
   return validMempool;
+};
+
+export const getValidMempoolForAddresses = async (addresses: string[]) => {
+  const mempool = await getValidMempool();
+  return mempool.filter(
+    tx =>
+      tx.inputs.some(input => addresses.includes(input.address)) ||
+      tx.outputs.some(output => addresses.includes(output.address))
+  );
 };
