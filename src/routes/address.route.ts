@@ -1,60 +1,75 @@
-import Express from "express";
-import {
-  getAddressInfo,
-  getAddressesInfo,
-  getAddressTransactions,
-  getAddressesTransactions,
-  getAddressUtxos,
-  getAddressesUtxos,
-} from "../controllers/address.controller";
+import { Router } from "express";
+import { BlocksInfo, Utxos } from "../models";
 
-export const addressRouter = () => {
-  const router = Express.Router();
+const router = Router();
 
-  router.get("/info/:address", async (req, res) => {
-    const address = req.params.address;
-    if (!address) return res.sendStatus(400);
-    const addressInfo = await getAddressInfo(req.app.locals, address);
-    res.send(addressInfo);
-  });
+router.get("/address/:address/info", async (req, res) => {
+  const { address } = req.params;
+  const utxos = await Utxos.find({ address });
+  const numUtxos = utxos.length;
+  const balance = utxos.reduce((total, utxo) => total + utxo.amount, 0);
 
-  router.get("/transactions/:address", async (req, res) => {
-    const address = req.params.address;
-    const limit = parseInt(req.query.limit as string);
-    const offset = parseInt(req.query.offset as string);
-    if (!address) return res.sendStatus(400);
+  const transactions = await BlocksInfo.aggregate([
+    { $match: { valid: true } },
+    { $unwind: "$transactions" },
+    { $project: { _id: 0, transactions: 1 } },
+    { $replaceRoot: { newRoot: { $mergeObjects: ["$transactions", "$$ROOT"] } } },
+    { $project: { transactions: 0 } },
+    { $match: { $or: [{ "inputs.address": address }, { "outputs.address": address }] } },
+  ]);
 
-    const transactions = await getAddressTransactions(address, limit, offset);
-    res.send(transactions);
-  });
+  const numTransactions = transactions.length;
+  let totalSent = 0;
+  let totalReceived = 0;
+  let numBlocksMined = 0;
 
-  router.get("/utxos/:address", async (req, res) => {
-    const address = req.params.address;
-    if (!address) return res.sendStatus(400);
+  for (const transaction of transactions) {
+    if (transaction.inputs.length === 0) numBlocksMined++;
+    for (const input of transaction.inputs) {
+      if (input.address !== address) continue;
+      totalSent += input.amount;
+    }
+    for (const output of transaction.outputs) {
+      if (output.address !== address) continue;
+      totalReceived += output.amount;
+    }
+  }
 
-    const utxos = await getAddressUtxos(req.app.locals, address);
-    res.send(utxos);
-  });
+  res.send({ balance, totalReceived, totalSent, numUtxos, numTransactions, numBlocksMined });
+});
 
-  router.post("/info", async (req, res) => {
-    const addresses = req.body.addresses;
-    const addressesInfo = await getAddressesInfo(req.app.locals, addresses);
-    res.send(addressesInfo);
-  });
+router.get("/address/:address/transactions", async (req, res) => {
+  const { address } = req.params;
+  const offset = parseInt(req.query.offset as string);
+  const limit = parseInt(req.query.limit as string);
 
-  router.post("/transactions", async (req, res) => {
-    const addresses = req.body.addresses;
-    const limit = parseInt(req.query.limit as string);
-    const offset = parseInt(req.query.offset as string);
-    const transactions = await getAddressesTransactions(addresses, limit, offset);
-    res.send(transactions);
-  });
+  const transactions = await BlocksInfo.aggregate([
+    { $unwind: "$transactions" },
+    {
+      $project: {
+        _id: 0,
+        block: {
+          height: "$height",
+          hash: "$hash",
+          valid: "$valid",
+        },
+        transactions: 1,
+      },
+    },
+    { $replaceRoot: { newRoot: { $mergeObjects: ["$transactions", "$$ROOT"] } } },
+    { $project: { transactions: 0 } },
+    {
+      $match: {
+        $or: [{ "inputs.address": address }, { "outputs.address": address }],
+        "block.valid": true,
+      },
+    },
+    { $sort: { timestamp: -1 } },
+    { $skip: offset > 0 ? offset : 0 },
+    { $limit: limit > 0 ? limit : Number.MAX_SAFE_INTEGER },
+  ]);
 
-  router.post("/utxos", async (req, res) => {
-    const addresses = req.body.addresses;
-    const utxos = await getAddressesUtxos(req.app.locals, addresses);
-    res.send(utxos);
-  });
+  res.send(transactions);
+});
 
-  return router;
-};
+export default router;

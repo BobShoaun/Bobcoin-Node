@@ -1,15 +1,20 @@
-import mongoose from "mongoose";
-import blockSchema from "./block2.model";
-import transactionSchema from "./transaction2.model";
-import matureBlockSchema from "./matureBlock.model";
+import { model, Document } from "mongoose";
+import { Block, BlockInfo, Utxo, Transaction, FaucetEntry } from "./types";
+
+import blockSchema from "./block.model";
+import blockInfoSchema from "./blockInfo.model";
 import utxoSchema from "./utxo.model";
-import transactionInfoSchema from "./transactionInfo.model";
+import transactionSchema from "./transaction.model";
 import faucetEntrySchema from "./faucetEntry.model";
 
-export const MatureBlock = mongoose.model("mature blocks", matureBlockSchema);
-export const OrphanedBlock = mongoose.model("orphaned blocks", blockSchema);
-export const UnconfirmedBlock = mongoose.model("unconfirmed blocks", blockSchema);
-export const MempoolTransaction = mongoose.model("mempool transactions", transactionSchema);
-export const Utxo = mongoose.model("utxos", utxoSchema);
-export const TransactionInfo = mongoose.model("transactions info", transactionInfoSchema);
-export const FaucetEntry = mongoose.model("faucet entry", faucetEntrySchema);
+type BlockDoc = Block & Document;
+type BlockInfoDoc = BlockInfo & Document;
+type UtxoDoc = Utxo & Document;
+type MempoolDoc = Transaction & Document;
+type FaucetEntryDoc = FaucetEntry & Document;
+
+export const Blocks = model<BlockDoc>("blocks", blockSchema);
+export const BlocksInfo = model<BlockInfoDoc>("blocks info", blockInfoSchema);
+export const Utxos = model<UtxoDoc>("utxos", utxoSchema);
+export const Mempool = model<MempoolDoc>("mempool transactions", transactionSchema);
+export const FaucetEntries = model<FaucetEntryDoc>("faucet entries", faucetEntrySchema);

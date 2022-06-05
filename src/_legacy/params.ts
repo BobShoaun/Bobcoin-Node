@@ -19,7 +19,7 @@
 
 import { network } from "./config";
 
-const testnetParams = {
+export const testnetParams = {
   name: "Bobcoin",
   symbol: "XBC",
   coin: 100_000_000, // amounts are stored as the smallest unit, this is how many of the smallest unit that amounts to 1 coin.
@@ -40,7 +40,7 @@ const testnetParams = {
   derivCoinType: 1, // coin type for all test nets as of bip44 spec
 };
 
-const mainnetParams = {
+export const mainnetParams = {
   name: "Bobcoin",
   symbol: "XBC",
   coin: 100_000_000, // amounts are stored as the smallest unit, this is how many of the smallest unit that amounts to 1 coin.

@@ -1,85 +1,105 @@
-import Express from "express";
-import {
-  getTransaction,
-  addTransaction,
-  getTransactionInfo,
-  getMempoolInfo,
-  getTransactions,
-  getTransactionCount,
-} from "../controllers/transaction.controller";
+import { Router } from "express";
+import { BlocksInfo, Mempool, Utxos } from "../models";
+import { addTransaction } from "../controllers/transaction.controller";
+import { TransactionInfo } from "../models/types";
+import { getValidMempool } from "../controllers/mempool.controller";
 
-export const transactionRouter = io => {
-  const router = Express.Router();
+const router = Router();
 
-  function error(res, e) {
-    res.status(400).json(`${e}`);
-    console.error(e);
+router.get("/transactions", async (req, res) => {
+  const limit = parseInt(req.query.limit as string);
+  const offset = parseInt(req.query.offset as string);
+
+  const transactions = await BlocksInfo.aggregate([
+    { $unwind: "$transactions" },
+    {
+      $project: {
+        _id: 0,
+        block: {
+          height: "$height",
+          hash: "$hash",
+          valid: "$valid",
+        },
+        transactions: 1,
+      },
+    },
+    { $replaceRoot: { newRoot: { $mergeObjects: ["$transactions", "$$ROOT"] } } },
+    { $project: { transactions: 0 } },
+    { $sort: { timestamp: -1 } },
+    { $skip: offset > 0 ? offset : 0 },
+    { $limit: limit > 0 ? limit : Number.MAX_SAFE_INTEGER },
+  ]);
+  res.send(transactions);
+});
+
+router.get("/transaction/:hash", async (req, res) => {
+  const { hash } = req.params;
+  const { block } = req.query;
+
+  // check mempool first
+  const transaction = (await Mempool.findOne({ hash }, { _id: 0 }).lean()) as TransactionInfo;
+
+  if (transaction) {
+    for (const input of transaction.inputs) {
+      const utxo = await Utxos.findOne({ txHash: input.txHash, outIndex: input.outIndex }); // TODO: check from mempool utxo set
+      if (!utxo) return res.status(500).send("Mempool tx invalid");
+      input.address = utxo.address;
+      input.amount = utxo.amount;
+    }
+    return res.send(transaction);
   }
 
-  router.get("/", async (req, res) => {
-    try {
-      const limit = parseInt(req.query.limit as string);
-      const offset = parseInt(req.query.offset as string);
-      const transactions = await getTransactions(limit, offset);
-      res.send(transactions);
-    } catch (e) {
-      error(res, e);
-    }
-  });
+  // check blocks
+  const transactions = await BlocksInfo.aggregate([
+    { $match: block ? { hash: block } : { valid: true } },
+    { $unwind: "$transactions" },
+    {
+      $project: {
+        _id: 0,
+        block: {
+          height: "$height",
+          hash: "$hash",
+          valid: "$valid",
+        },
+        transactions: 1,
+      },
+    },
+    { $replaceRoot: { newRoot: { $mergeObjects: ["$transactions", "$$ROOT"] } } },
+    { $project: { transactions: 0 } },
+    { $match: { hash } },
+  ]);
 
-  router.get("/count", async (req, res) => {
-    try {
-      const count = await getTransactionCount();
-      res.send({ count });
-    } catch (e) {
-      error(res, e);
-    }
-  });
+  if (!transactions.length) return res.sendStatus(404);
 
-  router.get("/:hash", async (req, res) => {
-    try {
-      const transaction = await getTransaction(req.app.locals, req.params.hash);
-      res.send(transaction);
-    } catch (e) {
-      error(res, e);
-    }
-  });
+  res.send(transactions[0]);
+});
 
-  router.get("/info/:hash", async (req, res) => {
-    try {
-      const info = await getTransactionInfo(req.app.locals, req.params.hash, req.query.block);
-      res.send(info);
-    } catch (e) {
-      error(res, e);
-    }
-  });
+// confirmed transactions in a block
+router.get("/transactions/count", async (req, res) => {
+  const transactions = await BlocksInfo.aggregate([
+    { $match: { valid: true } },
+    { $unwind: "$transactions" },
+    { $count: "count" },
+  ]);
+  res.send(transactions[0]);
+});
 
-  router.get("/mempool", (req, res) => {
-    try {
-      res.send(req.app.locals.mempool);
-    } catch (e) {
-      error(res, e);
-    }
-  });
+router.post("/transaction", async (req, res) => {
+  const transaction = req.body;
+  if (!transaction) return res.sendStatus(400);
 
-  router.get("/mempool/info", (req, res) => {
-    try {
-      res.send(getMempoolInfo(req.app.locals));
-    } catch (e) {
-      error(res, e);
-    }
-  });
+  try {
+    const validation = await addTransaction(transaction);
 
-  router.post("/", (req, res) => {
-    const { transaction } = req.body;
-    if (!transaction) return res.sendStatus(400);
-    try {
-      const validation = addTransaction(req.app.locals, transaction, io);
-      res.send(validation);
-    } catch (e) {
-      error(res, e);
-    }
-  });
+    req.app.locals.io.emit("transaction", {
+      mempool: await getValidMempool(),
+    });
 
-  return router;
-};
+    //TODO: inform other nodes of new transaction
+    res.status(201).send(validation);
+  } catch (e) {
+    return res.status(400).send(e);
+  }
+});
+
+export default router;

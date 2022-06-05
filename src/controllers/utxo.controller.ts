@@ -1,15 +1,23 @@
-export const getUtxos = (locals, address) => locals.utxos.filter(utxo => utxo.address === address);
+import { BlocksInfo, Utxos } from "../models";
+import { getValidMempool } from "../controllers/mempool.controller";
 
-const utxoInMempool = (locals, utxo) => {
-  for (const transaction of locals.mempool) {
-    for (const input of transaction.inputs) {
-      if (input.txHash !== utxo.txHash) continue;
-      if (input.outIndex !== utxo.outIndex) continue;
-      return true;
-    }
-  }
-  return false;
-};
+export const getUtxos = () => Utxos.find({}, { _id: 0 });
 
-export const getMempoolUtxos = (locals, address) =>
-  locals.utxos.filter(utxo => utxo.address === address && !utxoInMempool(locals, utxo));
+/**
+ *
+ * @param addresses
+ * @returns all blockchain utxos involving at least one of the addresses
+ */
+export const getBlockchainUtxosForAddresses = (addresses: string[]) =>
+  Utxos.find({ address: { $in: addresses } }, { _id: 0 });
+
+export const getUtxosForAddress = (address: string) => Utxos.find({ address }, { _id: 0 });
+
+// export const getMempoolUtxo = async () => {
+//   const blockchainUtxos = await Utxos.find({}, { _id: 0 }).lean();
+//   await getValidMempool();
+// }
+
+// export const getMempoolUtxoFromInput = async (txHash: string, outIndex: number) => {
+//   await getValidMempool();
+// };

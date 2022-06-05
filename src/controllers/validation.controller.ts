@@ -15,46 +15,9 @@ import {
 } from "blockcrypto";
 
 import { Blocks, BlocksInfo, Utxos, Mempool } from "../models";
-import { mapVCode, VCODE } from "./validation-codes";
+import { mapVCode, VCODE } from "../helpers/validation-codes";
 import { Block } from "../models/types";
-
-// calculate difficulty for current block
-export const calculateDifficulty = async (height: number, previousHash: string) => {
-  const offset = (height - 1) % params.diffRecalcHeight;
-  const currRecalcHeight = height - 1 - offset;
-  const prevRecalcHeight = currRecalcHeight - params.diffRecalcHeight;
-
-  let currRecalcBlock: Block = {
-    previousHash,
-    height: -1,
-    hash: "",
-    timestamp: 0,
-    version: "",
-    difficulty: 0,
-    nonce: 0,
-    merkleRoot: "",
-    transactions: [],
-  };
-  do currRecalcBlock = await Blocks.findOne({ hash: currRecalcBlock.previousHash }).lean();
-  while (currRecalcBlock.height !== currRecalcHeight);
-
-  let prevRecalcBlock = currRecalcBlock;
-  do prevRecalcBlock = await Blocks.findOne({ hash: prevRecalcBlock.previousHash }).lean();
-  while (prevRecalcBlock.height !== prevRecalcHeight);
-
-  const timeDiff = (currRecalcBlock.timestamp - prevRecalcBlock.timestamp) / 1000; // divide to get seconds
-  const targetTimeDiff = params.diffRecalcHeight * params.targBlkTime; // in seconds
-  let correctionFactor = targetTimeDiff / timeDiff;
-  correctionFactor = Math.min(correctionFactor, params.maxDiffCorrFact); // clamp correctionfactor
-  correctionFactor = Math.max(correctionFactor, params.minDiffCorrFact);
-  return (
-    Math.round(
-      (Math.max(currRecalcBlock.difficulty * correctionFactor, params.initBlkDiff) +
-        Number.EPSILON) *
-        10000
-    ) / 10000
-  ); // new difficulty, max 4 decimal places
-};
+import { calculateDifficulty } from "./blockchain.controller";
 
 // validate without hash
 export const validateCandidateBlock = async (block: Block) => {
