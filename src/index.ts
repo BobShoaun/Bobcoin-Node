@@ -95,5 +95,6 @@ app.all("*", (_, res) => res.sendStatus(404));
   });
   app.locals.io = io;
 
-  server.listen(port, () => console.log("\nBobcoin Node listening on port:", port));
+  const _port = process.env.PORT ?? port;
+  server.listen(_port, () => console.log("\nBobcoin Node listening on port:", _port));
 })();
