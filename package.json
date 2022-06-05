@@ -2,10 +2,11 @@
   "name": "bobcoin-backend-node",
   "version": "2.0.0",
   "description": "Node which hosts and synchronizes a copy of the entire Bobcoin blockchain.",
-  "main": "src/index.js",
+  "main": "src/index.ts",
   "scripts": {
     "dev": "nodemon src/index.ts",
-    "start": "ts-node src/index.ts",
+    "start": "node dist/index.js",
+    "postinstall": "tsc",
     "dump": "ts-node src/scripts/dumpBlockchain.ts",
     "read": "ts-node src/scripts/readBlockchain.ts dumps/testnet.json"
   },

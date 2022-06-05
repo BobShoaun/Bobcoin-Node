@@ -1,3 +1,4 @@
+// @ts-nocheck
 import BlockCrypto from "blockcrypto";
 
 import params from "../params";
