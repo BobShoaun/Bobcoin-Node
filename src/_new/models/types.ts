@@ -30,10 +30,7 @@ export interface Block {
   transactions: Transaction[];
 }
 
-export interface TransactionInfo {
-  hash: string;
-  timestamp: number;
-  version: string;
+export interface TransactionInfo extends Transaction {
   inputs: [
     {
       txHash: string;
@@ -53,16 +50,8 @@ export interface TransactionInfo {
   ];
 }
 
-export interface BlockInfo {
+export interface BlockInfo extends Block {
   valid: boolean;
-  height: number;
-  hash: string;
-  previousHash: string;
-  timestamp: number;
-  version: string;
-  difficulty: number;
-  nonce: number;
-  merkleRoot: string;
   transactions: TransactionInfo[];
 }
 
@@ -71,4 +60,9 @@ export interface Utxo {
   outIndex: number;
   address: string;
   amount: number;
+}
+
+export interface FaucetEntry {
+  address: string;
+  count: number;
 }

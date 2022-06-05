@@ -1,34 +1,17 @@
-// @ts-nocheck
 import { Router } from "express";
 import { BlocksInfo, Mempool, Utxos } from "../models";
+import { getValidMempool } from "../controllers/mempool.controller";
 
 const router = Router();
 
 router.get("/mempool", async (req, res) => {
-  const transactions = await Mempool.find({}, { _id: false }).lean();
-
-  const validMempool = [];
-  for (const transaction of transactions) {
-    let valid = true;
-    for (const input of transaction.inputs) {
-      const utxo = await Utxos.findOne({ txHash: input.txHash, outIndex: input.outIndex }); // TODO: check from mempool utxo set
-      if (!utxo) {
-        valid = false;
-        break;
-      }
-      input.address = utxo.address;
-      input.amount = utxo.amount;
-    }
-    if (valid) validMempool.push(transaction);
-    else console.log(`txId: ${transaction.hash} is no longer valid.`);
-  }
-
-  res.send(validMempool);
+  const mempool = await getValidMempool();
+  res.send(mempool);
 });
 
 router.get("/mempool/all", async (req, res) => {
-  const offset = parseInt(req.query.offset);
-  const limit = parseInt(req.query.limit);
+  const offset = parseInt(req.query.offset as string);
+  const limit = parseInt(req.query.limit as string);
 
   const transactions = await Mempool.find({}, { _id: 0 })
     .sort({ timestamp: -1 })
@@ -45,8 +28,8 @@ router.get("/mempool/count", async (req, res) => {
 
 router.get("/mempool/address/:address", async (req, res) => {
   const { address } = req.params;
-  const offset = parseInt(req.query.offset);
-  const limit = parseInt(req.query.limit);
+  const offset = parseInt(req.query.offset as string);
+  const limit = parseInt(req.query.limit as string);
 
   const transactions = await Mempool.find(
     { $or: [{ "inputs.address": address }, { "outputs.address": address }] },

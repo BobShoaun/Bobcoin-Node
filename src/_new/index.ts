@@ -15,6 +15,7 @@ import addressRouter from "./routes/address.route";
 import mineRouter from "./routes/mine.route";
 import mempoolRouter from "./routes/mempool.route";
 import walletRouter from "./routes/wallet.route";
+import faucetRouter from "./routes/faucet.route";
 
 import { checkDatabaseConn } from "./middlewares/mongo.middleware";
 import { BlocksInfo, Mempool } from "./models";
@@ -39,6 +40,7 @@ app.use(addressRouter);
 app.use(mineRouter);
 app.use(mempoolRouter);
 app.use(walletRouter);
+app.use(faucetRouter);
 
 app.get("/", (_, res) => res.send("Hello from Bobcoin Node API"));
 app.all("*", (_, res) => res.sendStatus(404));

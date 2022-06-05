@@ -206,12 +206,6 @@ router.post("/block", async (req, res) => {
   // TODO, inform socket clients and propagate to other nodes.
   req.app.locals.io.emit("block", {
     headBlock: await getHeadBlock(),
-    // recentValidBlocks: await BlocksInfo.aggregate([
-    //   { $group: { _id: "$height", blocks: { $push: "$$ROOT" } } },
-    //   { $sort: { _id: -1 } },
-    //   { $limit: 10 },
-    //   { $project: { _id: 0, blocks: 1, height: "$_id" } },
-    // ]),
     mempool: await getValidMempool(),
   });
 

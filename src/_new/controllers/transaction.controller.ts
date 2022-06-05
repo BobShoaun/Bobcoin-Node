@@ -15,8 +15,7 @@ export const addTransaction = async (transaction: Transaction) => {
   const validation = await validateTransaction(transaction);
   if (validation.code !== VCODE.VALID) throw validation;
 
-  const tt = await Mempool.create(transaction);
-  console.log(tt);
+  await Mempool.create(transaction);
   return validation;
 };
 
