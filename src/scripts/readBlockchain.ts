@@ -12,13 +12,10 @@ import { validateBlockchain } from "../controllers/validation.controller";
 
   // console.log(mempool);
 
-  console.log(
-    validateBlockchain(blocks).code === VCODE.VALID
-      ? "Blockchain is valid"
-      : "Blockchain is invalid!!!"
-  );
+  const validation = validateBlockchain(blocks);
+  console.log(validation.code === VCODE.VALID ? "Blockchain is valid" : "Blockchain is invalid!!!");
 
-  // process.exit();
+  process.exit();
 
   // add to db
   await mongoose.connect(mongoURI, {

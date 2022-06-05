@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { Blocks, BlocksInfo, Utxos } from "../models";
+import { BlockInfo } from "../models/types";
 
 // export const checkBlocks = async (blocks) => {
 //     blocks.sort((a, b) => a.height - b.height).reverse();
@@ -18,7 +18,7 @@ import { Blocks, BlocksInfo, Utxos } from "../models";
 // }
 
 export const recalculateCache = async () => {
-  const blocks = await Blocks.find().sort({ height: -1 }).lean();
+  const blocks = (await Blocks.find().sort({ height: -1 }).lean()) as BlockInfo[];
 
   console.log("\nCalculating head block...");
 
@@ -105,11 +105,13 @@ export const recalculateCache = async () => {
 
     const nextBlocks =
       blocksPerHeight[block.height + 1]?.filter(b => b.previousHash === block.hash) ?? [];
+
+    let headBlockUtxos = null;
     for (const nextBlock of nextBlocks) {
-      const headBlockUtxos = calculateBlocksInfo(nextBlock, [...utxos]);
-      if (!headBlockUtxos) continue;
-      return headBlockUtxos;
+      const _utxos = calculateBlocksInfo(nextBlock, [...utxos]);
+      if (_utxos) headBlockUtxos = _utxos;
     }
+    if (headBlockUtxos) return headBlockUtxos;
 
     return block.hash === headBlock.hash ? utxos : null;
   };
@@ -119,7 +121,7 @@ export const recalculateCache = async () => {
   console.log("utxos count:", utxos.length);
 
   await BlocksInfo.deleteMany();
-  await BlocksInfo.insertMany(blocks);
+  await BlocksInfo.insertMany(blocks).catch(err => console.log(err));
   await Utxos.deleteMany();
   await Utxos.insertMany(utxos);
 

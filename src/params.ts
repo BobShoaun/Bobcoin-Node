@@ -44,7 +44,7 @@ const mainnetParams = {
   name: "Bobcoin",
   symbol: "XBC",
   coin: 100_000_000, // amounts are stored as the smallest unit, this is how many of the smallest unit that amounts to 1 coin.
-  version: "1.2.0",
+  version: "1.3.0",
   addressPre: "06",
   checksumLen: 4,
   initBlkReward: 512 * 100_000_000, // in coins

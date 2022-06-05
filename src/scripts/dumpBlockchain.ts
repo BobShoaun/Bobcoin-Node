@@ -1,24 +1,24 @@
 // @ts-nocheck
 import mongoose from "mongoose";
-import { atlasURI, network } from "../../config";
+import { mongoURI, network } from "../config";
 import {
   OrphanedBlock,
   MatureBlock,
   UnconfirmedBlock,
   MempoolTransaction,
-} from "../../models/index";
+} from "../_legacy/models/index";
 import fs from "fs";
 
 const filePath = process.argv[2] ?? "./output.json";
 
 (async function () {
-  await mongoose.connect(atlasURI, {
+  await mongoose.connect(mongoURI, {
     useNewUrlParser: true,
     useCreateIndex: true,
     useUnifiedTopology: true,
     useFindAndModify: false,
   });
-  console.log("MongoDB database connection established to: ", network);
+  console.log("MongoDB database connection established to:", network);
 
   const matureBlocks = await MatureBlock.find();
   const unconfirmedBlocks = await UnconfirmedBlock.find();
