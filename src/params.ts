@@ -23,7 +23,7 @@ const testnetParams = {
   name: "Bobcoin",
   symbol: "XBC",
   coin: 100_000_000, // amounts are stored as the smallest unit, this is how many of the smallest unit that amounts to 1 coin.
-  version: "0.1.0",
+  version: "0.2.0",
   addressPre: "06",
   checksumLen: 4,
   initBlkReward: 4096 * 100_000_000, // in coins

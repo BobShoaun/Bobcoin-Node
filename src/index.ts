@@ -1,4 +1,3 @@
-// @ts-nocheck
 import fs from "fs";
 import path from "path";
 import http from "http";
@@ -16,11 +15,12 @@ import mineRouter from "./routes/mine.route";
 import mempoolRouter from "./routes/mempool.route";
 import walletRouter from "./routes/wallet.route";
 import faucetRouter from "./routes/faucet.route";
+import blockchainRouter from "./routes/blockchain.route";
 
 import { checkDatabaseConn } from "./middlewares/mongo.middleware";
-import { BlocksInfo, Mempool } from "./models";
 import { getValidMempool } from "./controllers/mempool.controller";
-import { getHeadBlock } from "./controllers/blockchain.controller";
+import { getHeadBlock, calculateDifficulty } from "./controllers/blockchain.controller";
+import { getUtxos } from "./controllers/utxo.controller";
 import { recalculateCache } from "./helpers/general.helper";
 import params from "./params";
 
@@ -41,12 +41,25 @@ app.use(mineRouter);
 app.use(mempoolRouter);
 app.use(walletRouter);
 app.use(faucetRouter);
+app.use(blockchainRouter);
 
-app.get("/", (_, res) => res.send("Hello from Bobcoin Node API"));
+app.get("/", async (_, res) => {
+  const headBlock = await getHeadBlock();
+  const message = `
+    <h1>Bobcoin Node v${process.env.npm_package_version}</h1>
+    <pre>Network: ${network}</pre>
+    <pre>Parameters: ${JSON.stringify(params, null, 2)}</pre>
+    <pre>Head block: ${JSON.stringify(headBlock, null, 2)}</pre>
+    <pre>Difficulty: ${await calculateDifficulty(headBlock)}</pre>
+    <pre>Valid Mempool: ${JSON.stringify(await getValidMempool(), null, 2)}</pre>
+    `;
+  // <pre>Utxos: ${JSON.stringify(await getUtxos(), null, 2)}</pre>
+  res.send(message);
+});
 app.all("*", (_, res) => res.sendStatus(404));
 
 (async function () {
-  const welcomeText = fs.readFileSync(path.join(__dirname, "..", "..", "welcome.txt"), "utf8");
+  const welcomeText = fs.readFileSync(path.join(__dirname, "..", "welcome.txt"), "utf8");
   console.log(`Starting Bobcoin Node v${process.env.npm_package_version}`);
   console.log(welcomeText);
   console.log("Network:", network);
@@ -63,15 +76,15 @@ app.all("*", (_, res) => res.sendStatus(404));
     console.error("could not connect to mongodb:", e);
   }
 
-  // await recalculateCache();
+  await recalculateCache();
 
   // setup socket io
   const io = new Server(server, { cors: { origin: "*" } });
   io.on("connection", async socket => {
-    console.log("a client connected.");
+    console.log("A client connected.");
 
     socket.on("disconnect", () => {
-      console.log("a client disconnected.");
+      console.log("A client disconnected.");
     });
 
     socket.emit("initialize", {

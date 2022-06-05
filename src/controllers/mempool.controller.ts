@@ -23,7 +23,7 @@ export const getValidMempool = async () => {
       input.amount = utxo.amount;
     }
     if (valid) validMempool.push(transaction);
-    // else console.log(`txId: ${transaction.hash} is no longer valid.`);
+    // else console.log(`Mempool tx: ${transaction.hash} is no longer valid.`);
   }
 
   return validMempool;

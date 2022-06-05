@@ -26,7 +26,7 @@ router.get("/mine/info", async (req, res) => {
   res.send({ headBlock, mempool });
 });
 
-router.post("/candidate-block", async (req, res) => {
+router.post("/mine/candidate-block", async (req, res) => {
   const { previousBlockHash, miner } = req.body;
   const transactions = req.body.transactions ?? [];
   if (!miner) return res.sendStatus(400);
@@ -82,7 +82,7 @@ const createBlock = async (params, previousBlock: Block, transactions: Transacti
   transactions,
   timestamp: Date.now(),
   version: params.version,
-  difficulty: await calculateDifficulty(previousBlock.height + 1, previousBlock.hash),
+  difficulty: await calculateDifficulty(previousBlock),
   merkleRoot: calculateMerkleRoot(transactions.map(tx => tx.hash)),
   nonce: 0,
   hash: "",

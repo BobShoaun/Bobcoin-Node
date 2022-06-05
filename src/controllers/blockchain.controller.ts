@@ -19,23 +19,13 @@ export const findUtxo = async (prevBlockHash: string, txHash: string, outIndex: 
   } while (prevBlockHash);
 };
 
-// calculate difficulty for current block
-export const calculateDifficulty = async (height: number, previousHash: string) => {
-  const offset = (height - 1) % params.diffRecalcHeight;
-  const currRecalcHeight = height - 1 - offset;
+// calculate difficulty for next block from current block
+export const calculateDifficulty = async (block: Block) => {
+  const offset = block.height % params.diffRecalcHeight;
+  const currRecalcHeight = block.height - offset;
   const prevRecalcHeight = currRecalcHeight - params.diffRecalcHeight;
 
-  let currRecalcBlock: Block = {
-    previousHash,
-    height: -1,
-    hash: "",
-    timestamp: 0,
-    version: "",
-    difficulty: 0,
-    nonce: 0,
-    merkleRoot: "",
-    transactions: [],
-  };
+  let currRecalcBlock: Block | any = { previousHash: block.hash };
   do currRecalcBlock = await Blocks.findOne({ hash: currRecalcBlock.previousHash }).lean();
   while (currRecalcBlock.height !== currRecalcHeight);
 
