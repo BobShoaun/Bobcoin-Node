@@ -4,8 +4,8 @@
   "description": "Node which hosts and synchronizes a copy of the entire Bobcoin blockchain.",
   "main": "src/index.ts",
   "scripts": {
-    "dev": "nodemon src/index.ts",
-    "start": "node dist/index.js",
+    "dev": "nodemon src/server.ts",
+    "start": "node dist/server.js",
     "postinstall": "tsc",
     "dump": "ts-node src/scripts/dumpBlockchain.ts",
     "read": "ts-node src/scripts/readBlockchain.ts dumps/testnet.json"
