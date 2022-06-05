@@ -2,7 +2,7 @@ import http from "http";
 import express from "express";
 import cors from "cors";
 import { Server } from "socket.io";
-import { mongoURI, network, port } from "./config";
+import { mongoURI, network } from "./config";
 
 const app = express();
 const server = http.createServer(app);
@@ -34,5 +34,6 @@ app.all("*", (_, res) => res.sendStatus(404));
   //   });
   //   app.locals.io = io;
 
+  const port = process.env.PORT || 3000;
   server.listen(port, () => console.log("\nBobcoin Node listening on port:", port));
 })();
