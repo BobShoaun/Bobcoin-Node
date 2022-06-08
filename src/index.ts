@@ -81,10 +81,10 @@ app.all("*", (_, res) => res.sendStatus(404));
   // setup socket io
   const io = new Server(server, { cors: { origin: "*" } });
   io.on("connection", async socket => {
-    console.log("A client connected.");
+    console.log("Client connected:", socket.conn.server.clientsCount, "total");
 
     socket.on("disconnect", () => {
-      console.log("A client disconnected.");
+      console.log("Client disconnected:", socket.conn.server.clientsCount, "total");
     });
 
     socket.emit("initialize", {

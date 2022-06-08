@@ -9,21 +9,20 @@ import {
   calculateHashTarget,
   bigIntToHex64,
   calculateMerkleRoot,
-  RESULT,
 } from "blockcrypto";
 import { getValidMempool } from "../controllers/mempool.controller";
-import { calculateDifficulty } from "../controllers/blockchain.controller";
+import { calculateDifficulty, getHeadBlock } from "../controllers/blockchain.controller";
 import { validateCandidateBlock } from "../controllers/validation.controller";
 import { Block, Transaction } from "../models/types";
 
 const router = Router();
 
 router.get("/mine/info", async (req, res) => {
-  const headBlock = (
-    await BlocksInfo.find({ valid: true }, { _id: 0 }).sort({ height: -1 }).limit(1)
-  )[0];
-  const mempool = await getValidMempool();
-  res.send({ headBlock, mempool });
+  const headBlock = await getHeadBlock();
+  const numClients = req.app.locals.io.engine.clientsCount;
+  const difficulty = await calculateDifficulty(headBlock);
+
+  res.send({ numClients, difficulty });
 });
 
 router.post("/mine/candidate-block", async (req, res) => {

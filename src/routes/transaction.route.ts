@@ -77,7 +77,6 @@ router.get("/transaction/:hash", async (req, res) => {
 // confirmed transactions in a block
 router.get("/transactions/count", async (req, res) => {
   const transactions = await BlocksInfo.aggregate([
-    { $match: { valid: true } },
     { $unwind: "$transactions" },
     { $count: "count" },
   ]);
