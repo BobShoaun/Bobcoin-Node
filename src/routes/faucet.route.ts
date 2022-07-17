@@ -3,7 +3,7 @@ import { isBefore, sub } from "date-fns";
 
 import { getKeys, isAddressValid } from "blockcrypto";
 import { FaucetEntries } from "../models";
-import { getUtxosForAddress } from "../controllers/utxo.controller";
+import { getMempoolUtxosForAddress } from "../controllers/utxo.controller";
 import { createSimpleTransaction, addTransaction } from "../controllers/transaction.controller";
 import { getValidMempool } from "../controllers/mempool.controller";
 
@@ -24,7 +24,7 @@ const router = Router();
 router.get("/faucet/info", async (req, res) => {
   const { address } = getKeys(params, faucetSecretKey);
 
-  const utxos = await getUtxosForAddress(address);
+  const utxos = await getMempoolUtxosForAddress(address);
   const balance = utxos.reduce((total, utxo) => total + utxo.amount, 0);
 
   res.send({ address, balance, donationAmount: faucetDonateAmount, cooldown: faucetCooldown });

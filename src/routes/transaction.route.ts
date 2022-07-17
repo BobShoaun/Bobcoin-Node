@@ -36,20 +36,7 @@ router.get("/transaction/:hash", async (req, res) => {
   const { hash } = req.params;
   const { block } = req.query;
 
-  // check mempool first
-  const transaction = (await Mempool.findOne({ hash }, { _id: 0 }).lean()) as TransactionInfo;
-
-  if (transaction) {
-    for (const input of transaction.inputs) {
-      const utxo = await Utxos.findOne({ txHash: input.txHash, outIndex: input.outIndex }); // TODO: check from mempool utxo set
-      if (!utxo) return res.status(500).send("Mempool tx invalid");
-      input.address = utxo.address;
-      input.amount = utxo.amount;
-    }
-    return res.send(transaction);
-  }
-
-  // check blocks
+  // check blocks first
   const transactions = await BlocksInfo.aggregate([
     { $match: block ? { hash: block } : { valid: true } },
     { $unwind: "$transactions" },
@@ -68,10 +55,22 @@ router.get("/transaction/:hash", async (req, res) => {
     { $project: { transactions: 0 } },
     { $match: { hash } },
   ]);
+  if (transactions.length) return res.send(transactions[0]);
 
-  if (!transactions.length) return res.sendStatus(404);
+  // check mempool
+  const transaction = (await Mempool.findOne({ hash }, { _id: 0 }).lean()) as TransactionInfo;
 
-  res.send(transactions[0]);
+  if (transaction) {
+    for (const input of transaction.inputs) {
+      const utxo = await Utxos.findOne({ txHash: input.txHash, outIndex: input.outIndex }); // TODO: check from mempool utxo set
+      if (!utxo) return res.status(500).send("Mempool tx invalid");
+      input.address = utxo.address;
+      input.amount = utxo.amount;
+    }
+    return res.send(transaction);
+  }
+
+  return res.sendStatus(404);
 });
 
 // confirmed transactions in a block

@@ -16,7 +16,7 @@ import {
 import params from "../params";
 
 import { Transaction } from "../models/types";
-import { getUtxosForAddress } from "./utxo.controller";
+import { getMempoolUtxosForAddress } from "./utxo.controller";
 
 export const addTransaction = async (transaction: Transaction) => {
   const validation = await validateTransaction(transaction);
@@ -64,7 +64,7 @@ export const createSimpleTransaction = async (
 ) => {
   const { pk: senderPublicKey, address: senderAddress } = getKeys(params, senderSecretKey);
 
-  const utxos = await getUtxosForAddress(senderAddress);
+  const utxos = await getMempoolUtxosForAddress(senderAddress);
 
   // pick utxos
   let inputAmount = 0;

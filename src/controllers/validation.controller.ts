@@ -52,18 +52,32 @@ export const validateCandidateBlock = async (block: Block) => {
     for (const input of transaction.inputs) {
       // find utxo
       let utxo = null;
-      let prevBlock = block;
-      outer: while (prevBlock) {
-        prevBlock = (await Blocks.findOne({ hash: prevBlock.previousHash }).lean()) as Block;
-        if (!prevBlock) return mapVCode(VCODE.TX05, input.txHash, input.outIndex); // utxo not found, got to genesis block
-        for (const tx of prevBlock.transactions) {
-          for (const _input of tx.inputs) {
-            if (_input.txHash === input.txHash && _input.outIndex === input.outIndex)
-              return mapVCode(VCODE.TX11, input.txHash, input.outIndex); // utxo is stxo (spent)
-          }
-          if (tx.hash === input.txHash) {
-            utxo = tx.outputs[input.outIndex];
-            break outer;
+
+      // check own block first
+      for (const transaction of block.transactions.slice(0, i).reverse()) {
+        for (const _input of transaction.inputs)
+          if (input.txHash === _input.txHash && input.outIndex === _input.outIndex)
+            return mapVCode(VCODE.TX11, input.txHash, input.outIndex); // utxo is stxo (spent)
+        if (input.txHash === transaction.hash) {
+          utxo = transaction.outputs[input.outIndex];
+          break;
+        }
+      }
+
+      if (!utxo) {
+        // check previous blocks
+        let prevBlock = block;
+        outer: while (prevBlock) {
+          prevBlock = (await Blocks.findOne({ hash: prevBlock.previousHash }).lean()) as Block;
+          if (!prevBlock) return mapVCode(VCODE.TX05, input.txHash, input.outIndex); // utxo not found, got to genesis block
+          for (const transaction of [...prevBlock.transactions].reverse()) {
+            for (const _input of transaction.inputs)
+              if (input.txHash === _input.txHash && input.outIndex === _input.outIndex)
+                return mapVCode(VCODE.TX11, input.txHash, input.outIndex); // utxo is stxo (spent)
+            if (input.txHash === transaction.hash) {
+              utxo = transaction.outputs[input.outIndex];
+              break outer;
+            }
           }
         }
       }
