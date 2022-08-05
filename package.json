@@ -1,6 +1,6 @@
 {
   "name": "bobcoin-backend-node",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "Node which hosts and synchronizes a copy of the entire Bobcoin blockchain.",
   "main": "src/index.ts",
   "scripts": {
