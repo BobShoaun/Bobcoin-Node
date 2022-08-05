@@ -50,14 +50,16 @@ export const validateCandidateBlock = async (block: Block) => {
 
     let txTotalInput = 0;
     for (const input of transaction.inputs) {
-      // find utxo
-      let utxo = null;
+      let utxo = null; // find utxo
 
       // check own block first
       for (const transaction of block.transactions.slice(0, i).reverse()) {
-        for (const _input of transaction.inputs)
-          if (input.txHash === _input.txHash && input.outIndex === _input.outIndex)
-            return mapVCode(VCODE.TX11, input.txHash, input.outIndex); // utxo is stxo (spent)
+        if (
+          transaction.inputs.some(
+            _input => _input.txHash === input.txHash && _input.outIndex === input.outIndex
+          )
+        )
+          return mapVCode(VCODE.TX11, input.txHash, input.outIndex); // utxo is stxo (spent)
         if (input.txHash === transaction.hash) {
           utxo = transaction.outputs[input.outIndex];
           break;
@@ -65,7 +67,7 @@ export const validateCandidateBlock = async (block: Block) => {
       }
 
       if (!utxo) {
-        let previousBlockHash = block.previousHash;
+        let prevBlockHash = block.previousHash;
         // @ts-ignore
         outer: for await (const prevBlock of Blocks.find(
           { height: { $lt: block.height } },
@@ -73,17 +75,20 @@ export const validateCandidateBlock = async (block: Block) => {
         )
           .sort({ height: -1 })
           .lean() as Block[]) {
-          if (previousBlockHash !== prevBlock.hash) continue; // wrong branch
+          if (prevBlockHash !== prevBlock.hash) continue; // wrong branch
           for (const transaction of [...prevBlock.transactions].reverse()) {
-            for (const _input of transaction.inputs)
-              if (input.txHash === _input.txHash && input.outIndex === _input.outIndex)
-                return mapVCode(VCODE.TX11, input.txHash, input.outIndex); // utxo is stxo (spent)
+            if (
+              transaction.inputs.some(
+                _input => _input.txHash === input.txHash && _input.outIndex === input.outIndex
+              )
+            )
+              return mapVCode(VCODE.TX11, input.txHash, input.outIndex); // utxo is stxo (spent)
             if (input.txHash === transaction.hash) {
               utxo = transaction.outputs[input.outIndex];
               break outer;
             }
           }
-          previousBlockHash = prevBlock.previousHash;
+          prevBlockHash = prevBlock.previousHash;
         }
       }
 

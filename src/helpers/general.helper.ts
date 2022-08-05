@@ -17,6 +17,7 @@ import { BlockInfo } from "../models/types";
 //       }
 // }
 
+// TODO: optimize with async iterators
 export const recalculateCache = async () => {
   const blocks = (await Blocks.find().sort({ height: -1 }).lean()) as BlockInfo[];
 

@@ -4,7 +4,7 @@ import { validateBlock } from "../controllers/validation.controller";
 import { VCODE } from "../helpers/validation-codes";
 import { getValidMempool } from "../controllers/mempool.controller";
 import { Block } from "../models/types";
-import { getHeadBlock, findUtxo } from "../controllers/blockchain.controller";
+import { getHeadBlock } from "../controllers/blockchain.controller";
 
 const router = Router();
 
@@ -119,15 +119,61 @@ router.post("/block", async (req, res) => {
   // not building on best chain, set as invalid / orphaned
   if (blockInfo.height <= headBlock.height) {
     console.log("Adding orphaned block:", blockInfo.height, blockInfo.hash);
-    // find utxo for information
-    for (const transaction of blockInfo.transactions) {
+
+    for (let i = 1; i < blockInfo.transactions.length; i++) {
+      const transaction = blockInfo.transactions[i];
+
       for (const input of transaction.inputs) {
-        const stxo = await findUtxo(blockInfo.previousHash, input.txHash, input.outIndex);
+        let utxo = null; // find utxo for information
+
+        // check own block first
+        for (const transaction of blockInfo.transactions.slice(0, i).reverse()) {
+          if (
+            transaction.inputs.some(
+              _input => _input.txHash === input.txHash && _input.outIndex === input.outIndex
+            )
+          )
+            return res.sendStatus(500); // FATAL: utxo is stxo (spent)
+          if (input.txHash === transaction.hash) {
+            utxo = transaction.outputs[input.outIndex];
+            break;
+          }
+        }
+
+        if (!utxo) {
+          let prevBlockHash = blockInfo.previousHash;
+          // @ts-ignore
+          outer: for await (const prevBlock of Blocks.find(
+            { height: { $lt: blockInfo.height } },
+            { _id: 0 }
+          )
+            .sort({ height: -1 })
+            .lean() as Block[]) {
+            if (prevBlockHash !== prevBlock.hash) continue; // wrong branch
+            for (const transaction of [...prevBlock.transactions].reverse()) {
+              if (
+                transaction.inputs.some(
+                  _input => _input.txHash === input.txHash && _input.outIndex === input.outIndex
+                )
+              )
+                return res.sendStatus(500); // FATAL: utxo is stxo (spent)
+              if (input.txHash === transaction.hash) {
+                utxo = transaction.outputs[input.outIndex];
+                break outer;
+              }
+            }
+            prevBlockHash = prevBlock.previousHash;
+          }
+        }
+
+        if (!utxo) return res.sendStatus(500); // FATAL: utxo not found
+
         // update input info
-        input.address = stxo.address;
-        input.amount = stxo.amount;
+        input.address = utxo.address;
+        input.amount = utxo.amount;
       }
     }
+
     blockInfo.valid = false;
     await blockInfo.save();
   } else if (blockInfo.previousHash === headBlock.hash) {
@@ -208,6 +254,7 @@ router.post("/block", async (req, res) => {
     mempool: await getValidMempool(),
   });
 
+  console.log("Block successfully added to blockchain!");
   res.send({ validation, blockInfo });
 });
 
