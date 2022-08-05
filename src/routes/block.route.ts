@@ -23,7 +23,16 @@ router.get("/blocks", async (req, res) => {
 });
 
 router.get("/blocks/raw", async (req, res) => {
-  const blocks = await Blocks.find({}, { _id: false });
+  const limit = parseInt(req.query.limit as string);
+  const height = parseInt(req.query.height as string);
+
+  const maxHeight = isNaN(height) ? Number.POSITIVE_INFINITY : height;
+  const minHeight = isNaN(limit) || isNaN(height) ? Number.NEGATIVE_INFINITY : height - limit; // exclusive
+
+  const blocks = await Blocks.find(
+    { height: { $lte: maxHeight, $gt: minHeight } },
+    { _id: false }
+  ).sort({ height: -1 });
   res.send(blocks);
 });
 
