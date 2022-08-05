@@ -12,7 +12,7 @@ import {
   hexToBigInt,
 } from "blockcrypto";
 
-import { Blocks, BlocksInfo, Utxos, Mempool } from "../models";
+import { Blocks } from "../models";
 import { mapVCode, VCODE } from "../helpers/validation-codes";
 import { Block } from "../models/types";
 import { calculateDifficulty } from "./blockchain.controller";
@@ -65,11 +65,15 @@ export const validateCandidateBlock = async (block: Block) => {
       }
 
       if (!utxo) {
-        // check previous blocks
-        let prevBlock = block;
-        outer: while (prevBlock) {
-          prevBlock = (await Blocks.findOne({ hash: prevBlock.previousHash }).lean()) as Block;
-          if (!prevBlock) return mapVCode(VCODE.TX05, input.txHash, input.outIndex); // utxo not found, got to genesis block
+        let previousBlockHash = block.previousHash;
+        // @ts-ignore
+        outer: for await (const prevBlock of Blocks.find(
+          { height: { $lt: block.height } },
+          { _id: 0 }
+        )
+          .sort({ height: -1 })
+          .lean() as Block[]) {
+          if (previousBlockHash !== prevBlock.hash) continue; // wrong branch
           for (const transaction of [...prevBlock.transactions].reverse()) {
             for (const _input of transaction.inputs)
               if (input.txHash === _input.txHash && input.outIndex === _input.outIndex)
@@ -79,6 +83,7 @@ export const validateCandidateBlock = async (block: Block) => {
               break outer;
             }
           }
+          previousBlockHash = prevBlock.previousHash;
         }
       }
 
