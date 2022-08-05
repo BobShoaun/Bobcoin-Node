@@ -32,7 +32,7 @@ router.post("/mine/candidate-block", async (req, res) => {
 
   const previousBlock = previousBlockHash
     ? await BlocksInfo.findOne({ hash: previousBlockHash }, { _id: 0 })
-    : (await BlocksInfo.find({ valid: true }, { _id: 0 }).sort({ height: -1 }).limit(1))[0];
+    : await getHeadBlock();
 
   if (!previousBlock) return res.status(404).send("Previous block not found.");
 

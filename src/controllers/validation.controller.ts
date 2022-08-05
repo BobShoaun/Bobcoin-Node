@@ -87,6 +87,8 @@ export const validateCandidateBlock = async (block: Block) => {
         }
       }
 
+      if (!utxo) return mapVCode(VCODE.TX05, input.txHash, input.outIndex); // utxo not found, got to genesis block
+
       if (utxo.address !== getAddressFromPKHex(params, input.publicKey))
         return mapVCode(VCODE.TX06);
       if (!isSignatureValid(input.signature, input.publicKey, preImage))
@@ -289,8 +291,6 @@ export const validateBlockchain = blocks => {
         Math.round(
           (Math.max(difficulty * correctionFactor, params.initBlkDiff) + Number.EPSILON) * 10000
         ) / 10000; // new difficulty, max 4 decimal places
-
-      // console.log("new diff", difficulty);
     }
     // ----- end calculate difficulty -----
 
