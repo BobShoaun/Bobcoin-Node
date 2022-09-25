@@ -14,6 +14,7 @@ import { getValidMempool } from "../controllers/mempool.controller";
 import { calculateDifficulty, getHeadBlock } from "../controllers/blockchain.controller";
 import { validateCandidateBlock } from "../controllers/validation.controller";
 import { Block, Transaction } from "../models/types";
+import { mapVCode, VCODE } from "../helpers/validation-codes";
 
 const router = Router();
 
@@ -74,7 +75,8 @@ router.post("/mine/candidate-block", async (req, res) => {
   const block = await createBlock(params, previousBlock, [coinbase, ...transactions]);
   const target = bigIntToHex64(calculateHashTarget(params, block));
 
-  const validation = await validateCandidateBlock(block);
+  // const validation = await validateCandidateBlock(block);
+  const validation = mapVCode(VCODE.VALID); // FIXME: temporary disable candidate block validation
   res.send({ validation, block, target });
 });
 
