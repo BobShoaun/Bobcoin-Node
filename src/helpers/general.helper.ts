@@ -62,7 +62,12 @@ export const recalculateCache = async () => {
     blocksPerHeight[block.height] = [block];
   }
 
-  const calculateBlocksInfo = (block, utxos = []) => {
+  const branches = [{ block: blocksPerHeight[0][0], utxos: [] }];
+  let headBlockUtxos = null;
+
+  while (branches.length) {
+    const { block, utxos } = branches.shift();
+    // do stuff with branch.block and branch.utxos
     for (const transaction of block.transactions) {
       // remove inputs from utxos
       for (const input of transaction.inputs) {
@@ -107,24 +112,23 @@ export const recalculateCache = async () => {
     const nextBlocks =
       blocksPerHeight[block.height + 1]?.filter(b => b.previousHash === block.hash) ?? [];
 
-    let headBlockUtxos = null;
-    for (const nextBlock of nextBlocks) {
-      const _utxos = calculateBlocksInfo(nextBlock, [...utxos]);
-      if (_utxos) headBlockUtxos = _utxos;
+    for (const nextBlock of nextBlocks) branches.push({ block: nextBlock, utxos: [...utxos] });
+
+    if (block.hash !== headBlock.hash) continue;
+    headBlockUtxos = utxos;
+
+    if (branches.length) {
+      console.error("FATAL: Head block should not have next blocks!");
+      process.exit();
     }
-    if (headBlockUtxos) return headBlockUtxos;
+  }
 
-    return block.hash === headBlock.hash ? utxos : null;
-  };
-
-  const utxos = calculateBlocksInfo(blocksPerHeight[0][0]);
-
-  console.log("utxos count:", utxos.length);
+  console.log("utxos count:", headBlockUtxos.length);
 
   await BlocksInfo.deleteMany();
   await BlocksInfo.insertMany(blocks).catch(err => console.log(err));
   await Utxos.deleteMany();
-  await Utxos.insertMany(utxos);
+  await Utxos.insertMany(headBlockUtxos);
 
   console.log("\nCache calculation completed and stored in mongodb.");
 };

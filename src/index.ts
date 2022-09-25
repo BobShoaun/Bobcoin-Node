@@ -95,6 +95,6 @@ app.all("*", (_, res) => res.sendStatus(404));
   });
   app.locals.io = io;
 
-  const _port = process.env.PORT ?? port; // have to bind at late as possible for heroku
+  const _port = process.env.PORT ?? port; // have to bind as late as possible for heroku
   server.listen(_port, () => console.log("\nBobcoin Node listening on port:", _port));
 })();
