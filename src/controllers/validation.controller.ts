@@ -14,7 +14,7 @@ import {
 
 import { Blocks } from "../models";
 import { mapVCode, VCODE } from "../helpers/validation-codes";
-import { Block } from "../models/types";
+import { Block, Utxo } from "../models/types";
 import { calculateDifficulty } from "./blockchain.controller";
 
 // validate without hash
@@ -151,8 +151,8 @@ export const validateBlock = async (block: Block) => {
 };
 
 // blocks doesnt have to be sorted.
-export const validateBlockchain = blocks => {
-  const blocksPerHeight = []; // array of array
+export const validateBlockchain = (blocks: Block[]) => {
+  const blocksPerHeight: Block[][] = []; // array of array
   for (const block of blocks) {
     if (blocksPerHeight[block.height]) {
       blocksPerHeight[block.height].push(block);
@@ -165,9 +165,13 @@ export const validateBlockchain = blocks => {
 
   let totalValidatedBlocks = 0;
 
-  // block cannot be genesis
-  const validateBlock = (block, utxos = [], difficulty = params.initBlkDiff) => {
+  const branches: [{ block: any; utxos: Utxo[]; difficulty: number }] = [
+    { block: blocksPerHeight[0][0], utxos: [], difficulty: params.initBlkDiff },
+  ];
+
+  while (branches.length) {
     totalValidatedBlocks++;
+    const { block, utxos, difficulty } = branches.shift();
 
     if (block.height > 0) {
       // not genesis block
@@ -274,40 +278,38 @@ export const validateBlockchain = blocks => {
 
     const nextBlocks =
       blocksPerHeight[block.height + 1]?.filter(b => b.previousHash === block.hash) ?? [];
-    if (!nextBlocks.length) return mapVCode(VCODE.VALID); // reached deadend
 
     // ----- calculate difficulty -----
-    if (block.height > 0 && block.height % params.diffRecalcHeight === 0) {
-      // get block diffRecalcHeights ago
-      let prevRecalcBlock = block;
-      do {
-        prevRecalcBlock = blocksPerHeight[prevRecalcBlock.height - 1].find(
-          b => b.hash === prevRecalcBlock.previousHash
-        );
-      } while (prevRecalcBlock.height !== block.height - params.diffRecalcHeight);
+    const newDifficulty = (() => {
+      if (block.height > 0 && block.height % params.diffRecalcHeight === 0) {
+        // get block diffRecalcHeights ago
+        let prevRecalcBlock = block;
+        do {
+          prevRecalcBlock = blocksPerHeight[prevRecalcBlock.height - 1].find(
+            b => b.hash === prevRecalcBlock.previousHash
+          );
+        } while (prevRecalcBlock.height !== block.height - params.diffRecalcHeight);
 
-      const timeDiff = (block.timestamp - prevRecalcBlock.timestamp) / 1000; // divide to get seconds
-      const targetTimeDiff = params.diffRecalcHeight * params.targBlkTime; // in seconds
-      let correctionFactor = targetTimeDiff / timeDiff;
-      correctionFactor = Math.min(correctionFactor, params.maxDiffCorrFact); // clamp correctionfactor
-      correctionFactor = Math.max(correctionFactor, params.minDiffCorrFact);
+        const timeDiff = (block.timestamp - prevRecalcBlock.timestamp) / 1000; // divide to get seconds
+        const targetTimeDiff = params.diffRecalcHeight * params.targBlkTime; // in seconds
+        let correctionFactor = targetTimeDiff / timeDiff;
+        correctionFactor = Math.min(correctionFactor, params.maxDiffCorrFact); // clamp correctionfactor
+        correctionFactor = Math.max(correctionFactor, params.minDiffCorrFact);
 
-      difficulty =
-        Math.round(
-          (Math.max(difficulty * correctionFactor, params.initBlkDiff) + Number.EPSILON) * 10000
-        ) / 10000; // new difficulty, max 4 decimal places
-    }
+        return (
+          Math.round(
+            (Math.max(difficulty * correctionFactor, params.initBlkDiff) + Number.EPSILON) * 10000
+          ) / 10000
+        ); // new difficulty, max 4 decimal places
+      }
+      return difficulty;
+    })();
     // ----- end calculate difficulty -----
 
-    for (const nextBlock of nextBlocks) {
-      const validation = validateBlock(nextBlock, [...utxos], difficulty);
-      if (validation.code !== VCODE.VALID) return validation;
-    }
-    return mapVCode(VCODE.VALID);
-  };
+    for (const nextBlock of nextBlocks)
+      branches.push({ block: nextBlock, utxos: [...utxos], difficulty: newDifficulty });
+  }
 
-  const validation = validateBlock(blocksPerHeight[0][0]);
-  if (validation.code !== VCODE.VALID) return validation;
   if (totalValidatedBlocks !== blocks.length) return mapVCode(VCODE.BC03); // blocks without any parent.
 
   return mapVCode(VCODE.VALID); // all good!

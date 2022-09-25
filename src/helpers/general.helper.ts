@@ -1,21 +1,5 @@
 import { Blocks, BlocksInfo, Utxos } from "../models";
-import { BlockInfo } from "../models/types";
-
-// export const checkBlocks = async (blocks) => {
-//     blocks.sort((a, b) => a.height - b.height).reverse();
-
-//     for (let i = 0; i < blocks.length; i++) {
-//         if (blocks[i].version === "1.2.0" || blocks[i].version === "0.1.0") {
-//           blocks[i].difficulty = blocks[i].difficulty.toFixed(4);
-//         }
-//         const actualHash = calculateBlockHash(blocks[i]);
-//         if (blocks[i].hash !== actualHash) {
-//           console.log("mismatch:", blocks[i].height, blocks[i].version, blocks[i].hash, actualHash);
-//         } else {
-//           // console.log(blocks[i].height, blocks[i].version);
-//         }
-//       }
-// }
+import { BlockInfo, Utxo } from "../models/types";
 
 // TODO: optimize with async iterators
 export const recalculateCache = async () => {
@@ -62,7 +46,9 @@ export const recalculateCache = async () => {
     blocksPerHeight[block.height] = [block];
   }
 
-  const branches = [{ block: blocksPerHeight[0][0], utxos: [] }];
+  const branches: [{ block: BlockInfo; utxos: Utxo[] }] = [
+    { block: blocksPerHeight[0][0], utxos: [] },
+  ];
   let headBlockUtxos = null;
 
   while (branches.length) {
@@ -117,8 +103,9 @@ export const recalculateCache = async () => {
     if (block.hash !== headBlock.hash) continue;
     headBlockUtxos = utxos;
 
-    if (branches.length) {
-      console.error("FATAL: Head block should not have next blocks!");
+    for (const { block } of branches) {
+      if (block.height === headBlock.height) continue;
+      console.error("FATAL: Should only be head blocks left in branches queue!");
       process.exit();
     }
   }
