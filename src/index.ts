@@ -5,7 +5,8 @@ import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
 import { Server } from "socket.io";
-import { mongoURI, network, port } from "./config";
+import io from "socket.io-client";
+import { mongoURI, network, port, whitelistedNodeUrls } from "./config";
 
 import blockRouter from "./routes/block.route";
 import transactionRouter from "./routes/transaction.route";
@@ -23,6 +24,11 @@ import { getHeadBlock, calculateDifficulty } from "./controllers/blockchain.cont
 import { getUtxos } from "./controllers/utxo.controller";
 import { recalculateCache } from "./helpers/general.helper";
 import params from "./params";
+
+import { validateBlock } from "./controllers/validation.controller";
+import { Block } from "./models/types";
+import { calculateBlockHash } from "blockcrypto";
+import { Blocks, BlocksInfo } from "./models";
 
 const app = express();
 const server = http.createServer(app);
@@ -76,15 +82,19 @@ app.all("*", (_, res) => res.sendStatus(404));
     console.error("could not connect to mongodb:", e);
   }
 
-  await recalculateCache();
+  // await recalculateCache();
 
-  // setup socket io
-  const io = new Server(server, { cors: { origin: "*" } });
-  io.on("connection", async socket => {
+  // setup socket io server
+  const socketServer = new Server(server, { cors: { origin: "*" } }); // TODO: change for security
+  socketServer.on("connection", async socket => {
     console.log("Client connected:", socket.conn.server.clientsCount, "total");
 
     socket.on("disconnect", () => {
       console.log("Client disconnected:", socket.conn.server.clientsCount, "total");
+    });
+
+    socket.on("get-blockchain", () => {
+      console.log("someone wants blockcahin");
     });
 
     socket.emit("initialize", {
@@ -93,8 +103,41 @@ app.all("*", (_, res) => res.sendStatus(404));
       mempool: await getValidMempool(),
     });
   });
-  app.locals.io = io;
+  app.locals.io = socketServer;
+
+  // setup socket io client
+  for (const nodeUrl of whitelistedNodeUrls) {
+    const socketClient = io(nodeUrl);
+    socketClient.on("connection", () => {
+      console.log("connected to socket", nodeUrl);
+    });
+    // socketClient.on("initialize", () => {
+    //   console.log("socket client init");
+    // });
+
+    socketClient.emit("get-blockchain");
+
+    socketClient.on("node-block", block => {
+      console.log("received block", block);
+    });
+  }
+
+  // setup blockchain, add genesis block if does not exist
+  if (!(await Blocks.exists({ hash: params.genesisBlock.hash }))) {
+    console.log("genesis block does not exist");
+    await Blocks.create(params.genesisBlock);
+    const blockInfo = structuredClone(params.genesisBlock);
+    blockInfo.valid = true;
+    await BlocksInfo.create(blockInfo);
+  }
 
   const _port = process.env.PORT ?? port; // have to bind as late as possible for heroku
   server.listen(_port, () => console.log("\nBobcoin Node listening on port:", _port));
 })();
+
+const healthCheck = () => {
+  // assert genesis does not exist but blocks empty
+  // assert Blocks empty
+  // assert Blocks.count === BlocksInfo.count
+  // assert Blocks gblock is same as BlocksInfo gblock
+};

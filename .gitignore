@@ -1,5 +1,9 @@
 node_modules
 .env
+.env.alpha.mainnet
+.env.alpha.testnet
+.env.beta.mainnet
+.env.beta.testnet
 nodemon.json
 /dumps
 /dist
