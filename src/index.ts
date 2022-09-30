@@ -82,7 +82,7 @@ app.all("*", (_, res) => res.sendStatus(404));
     console.error("could not connect to mongodb:", e);
   }
 
-  // await recalculateCache();
+  await recalculateCache();
 
   // setup socket io server
   const socketServer = new Server(server, { cors: { origin: "*" } }); // TODO: change for security
