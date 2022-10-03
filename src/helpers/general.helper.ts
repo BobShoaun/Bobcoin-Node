@@ -7,7 +7,7 @@ export const recalculateCache = async () => {
 
   console.log("\nCalculating head block...");
 
-  // find headblock as earlist highest block
+  // find headblock as earliest highest block
   const highest = blocks[0].height; // highest block is first
   let headBlock = blocks[0];
   for (const block of blocks) {
@@ -31,7 +31,7 @@ export const recalculateCache = async () => {
   const validBlocks = blocks.filter(b => b.valid).reverse();
   for (let i = 0; i < headBlock.height + 1; i++) {
     if (i === validBlocks[i].height) continue;
-    console.error("something is wrong with the valid chain");
+    console.error("FATAL: something is wrong with the valid chain!");
     process.exit();
   }
 
@@ -61,7 +61,7 @@ export const recalculateCache = async () => {
           utxo => utxo.txHash === input.txHash && utxo.outIndex === input.outIndex
         );
         if (utxoIndex === -1) {
-          console.error("utxo does not exist on transaction!");
+          console.error("FATAL: utxo does not exist on transaction!");
           process.exit();
         }
         const utxo = utxos[utxoIndex];

@@ -3,10 +3,9 @@ import path from "path";
 import http from "http";
 import express from "express";
 import cors from "cors";
-import mongoose from "mongoose";
 import { Server } from "socket.io";
 import io from "socket.io-client";
-import { mongoURI, network, port, whitelistedNodeUrls } from "./config";
+import { network, port, whitelistedNodeUrls } from "./config";
 
 import blockRouter from "./routes/block.route";
 import transactionRouter from "./routes/transaction.route";
@@ -22,6 +21,7 @@ import { checkDatabaseConn } from "./middlewares/mongo.middleware";
 import { getValidMempool } from "./controllers/mempool.controller";
 import { getHeadBlock, calculateDifficulty } from "./controllers/blockchain.controller";
 import { getUtxos } from "./controllers/utxo.controller";
+import { connectMongoDB } from "./helpers/database.helper";
 import { recalculateCache } from "./helpers/general.helper";
 import params from "./params";
 
@@ -64,23 +64,13 @@ app.get("/", async (_, res) => {
 });
 app.all("*", (_, res) => res.sendStatus(404));
 
-(async function () {
+(async () => {
   const welcomeText = fs.readFileSync(path.join(__dirname, "..", "welcome.txt"), "utf8");
   console.log(`Starting Bobcoin Node v${process.env.npm_package_version}`);
   console.log(welcomeText);
   console.log("Network:", network);
-  try {
-    // mongodb connection
-    await mongoose.connect(mongoURI, {
-      useNewUrlParser: true,
-      useCreateIndex: true,
-      useUnifiedTopology: true,
-      useFindAndModify: false,
-    });
-    console.log("MongoDB database connection established");
-  } catch (e) {
-    console.error("could not connect to mongodb:", e);
-  }
+
+  await connectMongoDB();
 
   await recalculateCache();
 
