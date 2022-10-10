@@ -6,6 +6,7 @@ export const network = process.env.NETWORK; // mainnet || testnet
 export const port = parseInt(process.env.PORT);
 export const apiKey = process.env.API_KEY;
 export const mongoURI = process.env.MONGODB_URI;
+export const blockPostQueuedLimit = process.env.BLOCK_POST_QUEUED_LIMIT ?? 20;
 
 export const recaptchaSecretKey = process.env.RECAPTCHA_SECRET_KEY;
 export const faucetSecretKey = process.env.FAUCET_SECRET_KEY;

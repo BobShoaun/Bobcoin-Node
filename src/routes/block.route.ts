@@ -1,4 +1,7 @@
 import { Router, Request } from "express";
+import queue from "express-queue";
+import { blockPostQueuedLimit } from "../config";
+
 import { Blocks, BlocksInfo, Utxos, Mempool } from "../models";
 import { validateBlock } from "../controllers/validation.controller";
 import { VCODE } from "../helpers/validation-codes";
@@ -114,157 +117,164 @@ const appendValidBlock = async blockInfo => {
   await blockInfo.save();
 };
 
-router.post("/block", async (req, res) => {
-  const block = req.body;
-  if (!block) return res.sendStatus(400);
+router.post(
+  "/block",
+  queue({
+    activeLimit: 1,
+    queuedLimit: blockPostQueuedLimit,
+  }),
+  async (req, res) => {
+    const block = req.body;
+    if (!block) return res.sendStatus(400);
 
-  // validate block
-  const validation = await validateBlock(block);
-  if (validation.code !== VCODE.VALID) return res.status(400).send({ validation, block });
+    // validate block
+    const validation = await validateBlock(block);
+    if (validation.code !== VCODE.VALID) return res.status(400).send({ validation, block });
 
-  const blockInfo = new BlocksInfo(block);
-  const headBlock = await getHeadBlock();
+    const blockInfo = new BlocksInfo(block);
+    const headBlock = await getHeadBlock();
 
-  // not building on best chain, set as invalid / orphaned
-  if (blockInfo.height <= headBlock.height) {
-    console.log("Adding orphaned block:", blockInfo.height, blockInfo.hash);
+    // not building on best chain, set as invalid / orphaned
+    if (blockInfo.height <= headBlock.height) {
+      console.log("Adding orphaned block:", blockInfo.height, blockInfo.hash);
 
-    for (let i = 1; i < blockInfo.transactions.length; i++) {
-      const transaction = blockInfo.transactions[i];
+      for (let i = 1; i < blockInfo.transactions.length; i++) {
+        const transaction = blockInfo.transactions[i];
 
-      for (const input of transaction.inputs) {
-        let utxo = null; // find utxo for information
+        for (const input of transaction.inputs) {
+          let utxo = null; // find utxo for information
 
-        // check own block first
-        for (const transaction of blockInfo.transactions.slice(0, i).reverse()) {
-          if (
-            transaction.inputs.some(
-              _input => _input.txHash === input.txHash && _input.outIndex === input.outIndex
-            )
-          )
-            return res.sendStatus(500); // FATAL: utxo is stxo (spent)
-          if (input.txHash === transaction.hash) {
-            utxo = transaction.outputs[input.outIndex];
-            break;
-          }
-        }
-
-        if (!utxo) {
-          let prevBlockHash = blockInfo.previousHash;
-          // @ts-ignore
-          outer: for await (const prevBlock of Blocks.find(
-            { height: { $lt: blockInfo.height } },
-            { _id: 0 }
-          )
-            .sort({ height: -1 })
-            .lean() as Block[]) {
-            if (prevBlockHash !== prevBlock.hash) continue; // wrong branch
-            for (const transaction of [...prevBlock.transactions].reverse()) {
-              if (
-                transaction.inputs.some(
-                  _input => _input.txHash === input.txHash && _input.outIndex === input.outIndex
-                )
+          // check own block first
+          for (const transaction of blockInfo.transactions.slice(0, i).reverse()) {
+            if (
+              transaction.inputs.some(
+                _input => _input.txHash === input.txHash && _input.outIndex === input.outIndex
               )
-                return res.sendStatus(500); // FATAL: utxo is stxo (spent)
-              if (input.txHash === transaction.hash) {
-                utxo = transaction.outputs[input.outIndex];
-                break outer;
-              }
+            )
+              return res.sendStatus(500); // FATAL: utxo is stxo (spent)
+            if (input.txHash === transaction.hash) {
+              utxo = transaction.outputs[input.outIndex];
+              break;
             }
-            prevBlockHash = prevBlock.previousHash;
           }
+
+          if (!utxo) {
+            let prevBlockHash = blockInfo.previousHash;
+            // @ts-ignore
+            outer: for await (const prevBlock of Blocks.find(
+              { height: { $lt: blockInfo.height } },
+              { _id: 0 }
+            )
+              .sort({ height: -1 })
+              .lean() as Block[]) {
+              if (prevBlockHash !== prevBlock.hash) continue; // wrong branch
+              for (const transaction of [...prevBlock.transactions].reverse()) {
+                if (
+                  transaction.inputs.some(
+                    _input => _input.txHash === input.txHash && _input.outIndex === input.outIndex
+                  )
+                )
+                  return res.sendStatus(500); // FATAL: utxo is stxo (spent)
+                if (input.txHash === transaction.hash) {
+                  utxo = transaction.outputs[input.outIndex];
+                  break outer;
+                }
+              }
+              prevBlockHash = prevBlock.previousHash;
+            }
+          }
+
+          if (!utxo) return res.sendStatus(500); // FATAL: utxo not found
+
+          // update input info
+          input.address = utxo.address;
+          input.amount = utxo.amount;
+        }
+      }
+
+      blockInfo.valid = false;
+      await blockInfo.save();
+    } else if (blockInfo.previousHash === headBlock.hash) {
+      // common case
+      console.log("Appending block:", blockInfo.height, blockInfo.hash);
+      blockInfo.valid = true;
+      await appendValidBlock(blockInfo);
+    } else {
+      // blockchain reorg required. fork happened
+      console.log("\nBlockchain fork reorganization for block:", blockInfo.height, blockInfo.hash);
+      const fork = []; // starting from block after common ancestor to block before current new block (new head)
+
+      // find common ancestor
+      let commonBlock = null;
+      let currBlockHash = blockInfo.previousHash;
+      while (currBlockHash) {
+        const currBlock = await BlocksInfo.findOne({ hash: currBlockHash });
+        if (currBlock.valid) {
+          // block is in main chain, found common ancestor
+          commonBlock = currBlock;
+          break;
+        }
+        fork.push(currBlock);
+        currBlockHash = currBlock.previousHash;
+      }
+
+      // undo utxo history and return txs to mempool, starting from headBlock until common ancestor (valid block)
+      currBlockHash = headBlock.hash;
+      while (currBlockHash) {
+        const currBlock = await BlocksInfo.findOne({ hash: currBlockHash });
+
+        console.log("Undoing block:", currBlock.height, currBlock.hash);
+
+        for (const transaction of [...currBlock.transactions].reverse()) {
+          transaction.outputs.forEach(output => (output.txHash = null)); // clear spent tx output, since its no longer valid chain
+          await Utxos.deleteMany({ txHash: transaction.hash });
+
+          if (transaction.inputs.length) await Utxos.insertMany(transaction.inputs);
         }
 
-        if (!utxo) return res.sendStatus(500); // FATAL: utxo not found
+        const mempoolTxs = currBlock.transactions.filter(tx => tx.inputs.length > 0); // return non coinbase txs back to mempool
 
-        // update input info
-        input.address = utxo.address;
-        input.amount = utxo.amount;
+        // remove txHash in outputs for txs returning to mempool
+        for (const tx of mempoolTxs) {
+          await BlocksInfo.updateOne(
+            { "transactions.outputs.txHash": tx.hash, valid: true },
+            { "transactions.$.outputs.$[output].txHash": null },
+            { arrayFilters: [{ "output.txHash": tx.hash }] }
+          );
+        }
+
+        await Mempool.insertMany(mempoolTxs, { ordered: false }).catch(() =>
+          console.log("Potential mempool tx duplicated when returning.")
+        ); // ordered false for ignoring duplicates
+
+        currBlock.valid = false;
+        await currBlock.save();
+
+        if (currBlock.previousHash === commonBlock.hash) break;
+        currBlockHash = currBlock.previousHash;
+      }
+      console.log("Common ancestor block:", commonBlock.height, commonBlock.hash);
+
+      // retrace all forked blocks to valid blocks.
+      for (const _blockInfo of [...fork.reverse(), blockInfo]) {
+        console.log("Redoing block:", _blockInfo.height, _blockInfo.hash);
+        _blockInfo.valid = true;
+        await appendValidBlock(_blockInfo);
       }
     }
 
-    blockInfo.valid = false;
-    await blockInfo.save();
-  } else if (blockInfo.previousHash === headBlock.hash) {
-    // common case
-    console.log("Appending block:", blockInfo.height, blockInfo.hash);
-    blockInfo.valid = true;
-    await appendValidBlock(blockInfo);
-  } else {
-    // blockchain reorg required. fork happened
-    console.log("\nBlockchain fork reorganization for block:", blockInfo.height, blockInfo.hash);
-    const fork = []; // starting from block after common ancestor to block before current new block (new head)
+    // add to raw blocks
+    await Blocks.create(block);
 
-    // find common ancestor
-    let commonBlock = null;
-    let currBlockHash = blockInfo.previousHash;
-    while (currBlockHash) {
-      const currBlock = await BlocksInfo.findOne({ hash: currBlockHash });
-      if (currBlock.valid) {
-        // block is in main chain, found common ancestor
-        commonBlock = currBlock;
-        break;
-      }
-      fork.push(currBlock);
-      currBlockHash = currBlock.previousHash;
-    }
+    // TODO, inform socket clients and propagate to other nodes.
+    req.app.locals.io.emit("block", {
+      headBlock: await getHeadBlock(),
+      mempool: await getValidMempool(),
+    });
 
-    // undo utxo history and return txs to mempool, starting from headBlock until common ancestor (valid block)
-    currBlockHash = headBlock.hash;
-    while (currBlockHash) {
-      const currBlock = await BlocksInfo.findOne({ hash: currBlockHash });
-
-      console.log("Undoing block:", currBlock.height, currBlock.hash);
-
-      for (const transaction of [...currBlock.transactions].reverse()) {
-        transaction.outputs.forEach(output => (output.txHash = null)); // clear spent tx output, since its no longer valid chain
-        await Utxos.deleteMany({ txHash: transaction.hash });
-
-        if (transaction.inputs.length) await Utxos.insertMany(transaction.inputs);
-      }
-
-      const mempoolTxs = currBlock.transactions.filter(tx => tx.inputs.length > 0); // return non coinbase txs back to mempool
-
-      // remove txHash in outputs for txs returning to mempool
-      for (const tx of mempoolTxs) {
-        await BlocksInfo.updateOne(
-          { "transactions.outputs.txHash": tx.hash, valid: true },
-          { "transactions.$.outputs.$[output].txHash": null },
-          { arrayFilters: [{ "output.txHash": tx.hash }] }
-        );
-      }
-
-      await Mempool.insertMany(mempoolTxs, { ordered: false }).catch(() =>
-        console.log("Potential mempool tx duplicated when returning.")
-      ); // ordered false for ignoring duplicates
-
-      currBlock.valid = false;
-      await currBlock.save();
-
-      if (currBlock.previousHash === commonBlock.hash) break;
-      currBlockHash = currBlock.previousHash;
-    }
-    console.log("Common ancestor block:", commonBlock.height, commonBlock.hash);
-
-    // retrace all forked blocks to valid blocks.
-    for (const _blockInfo of [...fork.reverse(), blockInfo]) {
-      console.log("Redoing block:", _blockInfo.height, _blockInfo.hash);
-      _blockInfo.valid = true;
-      await appendValidBlock(_blockInfo);
-    }
+    console.log("Block successfully added to blockchain!");
+    res.status(201).send({ validation, blockInfo });
   }
-
-  // add to raw blocks
-  await Blocks.create(block);
-
-  // TODO, inform socket clients and propagate to other nodes.
-  req.app.locals.io.emit("block", {
-    headBlock: await getHeadBlock(),
-    mempool: await getValidMempool(),
-  });
-
-  console.log("Block successfully added to blockchain!");
-  res.send({ validation, blockInfo });
-});
+);
 
 export default router;

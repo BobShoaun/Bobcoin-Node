@@ -5,14 +5,16 @@
   "main": "src/index.ts",
   "scripts": {
     "dev": "nodemon src/index.ts",
-    "dev:alpha-testnet": "cross-env DOTENV_CONFIG_PATH=.env.alpha.testnet nodemon -r dotenv/config src/index.ts",
-    "dev:alpha-mainnet": "cross-env DOTENV_CONFIG_PATH=.env.alpha.mainnet nodemon -r dotenv/config src/index.ts",
-    "dev:beta-testnet": "cross-env DOTENV_CONFIG_PATH=.env.beta.testnet nodemon -r dotenv/config src/index.ts",
+    "dev:testnet:alpha": "cross-env DOTENV_CONFIG_PATH=alpha.testnet.env nodemon -r dotenv/config src/index.ts",
+    "dev:mainnet:alpha": "cross-env DOTENV_CONFIG_PATH=alpha.mainnet.env nodemon -r dotenv/config src/index.ts",
+    "dev:testnet:beta": "cross-env DOTENV_CONFIG_PATH=beta.testnet.env nodemon -r dotenv/config src/index.ts",
     "start": "node dist/index.js",
     "postinstall": "tsc",
     "dump": "ts-node src/scripts/dumpBlockchain.ts",
     "read": "ts-node src/scripts/readBlockchain.ts dumps/mainnet.json",
-    "prune": "cross-env DOTENV_CONFIG_PATH=.env.alpha.mainnet ts-node -r dotenv/config src/scripts/pruneBlockchain.ts"
+    "prune:mainnet:alpha": "cross-env DOTENV_CONFIG_PATH=alpha.mainnet.env ts-node -r dotenv/config src/scripts/pruneBlockchain.ts",
+    "prune:testnet:alpha": "cross-env DOTENV_CONFIG_PATH=alpha.testnet.env ts-node -r dotenv/config src/scripts/pruneBlockchain.ts",
+    "mine": "ts-node src/scripts/mine.ts"
   },
   "repository": {
     "type": "git",
@@ -31,6 +33,7 @@
     "date-fns": "^2.28.0",
     "dotenv": "^8.2.0",
     "express": "^4.17.1",
+    "express-queue": "^0.0.13",
     "mongoose": "^5.12.5",
     "socket.io": "^4.0.1",
     "socket.io-client": "^4.5.2"
