@@ -5,8 +5,9 @@ import express from "express";
 import cors from "cors";
 import { Server } from "socket.io";
 import io from "socket.io-client";
-import { network, port, whitelistedNodeUrls } from "./config";
+import morgan from "morgan";
 
+import { network, port, whitelistedNodeUrls } from "./config";
 import blockRouter from "./routes/block.route";
 import transactionRouter from "./routes/transaction.route";
 import utxoRouter from "./routes/utxo.route";
@@ -36,6 +37,7 @@ const server = http.createServer(app);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
+app.use(morgan("combined"));
 
 app.use(checkDatabaseConn);
 
