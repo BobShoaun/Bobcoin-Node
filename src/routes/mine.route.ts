@@ -27,6 +27,7 @@ router.get("/mine/info", async (req, res) => {
 });
 
 router.post("/mine/candidate-block", async (req, res) => {
+  return res.sendStatus(501);
   const { previousBlockHash, miner } = req.body;
   const transactions = req.body.transactions ?? [];
   if (!miner) return res.sendStatus(400);
