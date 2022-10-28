@@ -46,7 +46,7 @@ export const getValidMempool = async (): Promise<TransactionInfo[]> => {
     // else console.log(`Mempool tx: ${transaction.hash} is no longer valid.`);
   }
 
-  return validMempool.reverse();
+  return validMempool;
 };
 
 export const getValidMempoolForAddresses = async (addresses: string[]) => {
