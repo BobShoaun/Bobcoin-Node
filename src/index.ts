@@ -37,6 +37,7 @@ const server = http.createServer(app);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
+app.enable("trust proxy");
 app.use(morgan("combined"));
 
 app.use(checkDatabaseConn);
@@ -64,6 +65,7 @@ app.get("/", async (_, res) => {
   // <pre>Utxos: ${JSON.stringify(await getUtxos(), null, 2)}</pre>
   res.send(message);
 });
+app.get("/ip", (request, response) => response.send(request.ip));
 app.all("*", (_, res) => res.sendStatus(404));
 
 (async () => {
