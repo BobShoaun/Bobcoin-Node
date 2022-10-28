@@ -7,7 +7,7 @@ import { Server } from "socket.io";
 import io from "socket.io-client";
 import morgan from "morgan";
 
-import { network, port, whitelistedNodeUrls } from "./config";
+import { network, port, whitelistedNodeUrls, canRecalcCache } from "./config";
 import blockRouter from "./routes/block.route";
 import transactionRouter from "./routes/transaction.route";
 import utxoRouter from "./routes/utxo.route";
@@ -37,7 +37,8 @@ const server = http.createServer(app);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
-app.enable("trust proxy");
+// app.enable("trust proxy");
+app.set("trust proxy", 2);
 app.use(morgan("combined"));
 
 app.use(checkDatabaseConn);
@@ -76,7 +77,7 @@ app.all("*", (_, res) => res.sendStatus(404));
 
   await connectMongoDB();
 
-  await recalculateCache();
+  if (canRecalcCache) await recalculateCache();
 
   // setup socket io server
   const socketServer = new Server(server, { cors: { origin: "*" } }); // TODO: change for security
