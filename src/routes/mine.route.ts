@@ -87,8 +87,8 @@ router.post(
     const block = await createBlock(params, previousBlock, [coinbase, ...transactions]);
     const target = bigIntToHex64(calculateHashTarget(params, block));
 
-    const validation = await validateCandidateBlock(block);
-    // const validation = mapVCode(VCODE.VALID); // FIXME: temporary disable candidate block validation
+    // const validation = await validateCandidateBlock(block);
+    const validation = mapVCode(VCODE.VALID); // FIXME: temporary disable candidate block validation
     res.send({ validation, block, target });
   }
 );
