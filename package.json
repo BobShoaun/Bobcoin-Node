@@ -15,7 +15,8 @@
     "read": "ts-node src/scripts/readBlockchain.ts dumps/mainnet.json",
     "prune:mainnet:alpha": "cross-env DOTENV_CONFIG_PATH=alpha.mainnet.env ts-node -r dotenv/config src/scripts/pruneBlockchain.ts",
     "prune:testnet:alpha": "cross-env DOTENV_CONFIG_PATH=alpha.testnet.env ts-node -r dotenv/config src/scripts/pruneBlockchain.ts",
-    "mine": "ts-node src/scripts/mine.ts"
+    "mine": "ts-node src/scripts/mine.ts",
+    "aws-deploy": "git pull && npm run build && pm2 restart 0"
   },
   "repository": {
     "type": "git",

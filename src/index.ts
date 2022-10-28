@@ -42,8 +42,8 @@ app.enable("trust proxy");
 app.use(morgan("combined"));
 
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 300,
   standardHeaders: true,
   legacyHeaders: false,
 });
