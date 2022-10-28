@@ -37,8 +37,8 @@ const server = http.createServer(app);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
-// app.enable("trust proxy");
-app.set("trust proxy", 2);
+app.enable("trust proxy");
+// app.set("trust proxy", 2);
 app.use(morgan("combined"));
 
 app.use(checkDatabaseConn);
