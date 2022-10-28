@@ -4,6 +4,7 @@
   "description": "Node which hosts and synchronizes a copy of the entire Bobcoin blockchain.",
   "main": "src/index.ts",
   "scripts": {
+    "build": "tsc",
     "dev": "nodemon src/index.ts",
     "dev:testnet:alpha": "cross-env DOTENV_CONFIG_PATH=alpha.testnet.env nodemon -r dotenv/config src/index.ts",
     "dev:mainnet:alpha": "cross-env DOTENV_CONFIG_PATH=alpha.mainnet.env nodemon -r dotenv/config src/index.ts",
