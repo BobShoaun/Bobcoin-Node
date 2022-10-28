@@ -6,6 +6,7 @@ import cors from "cors";
 import { Server } from "socket.io";
 import io from "socket.io-client";
 import morgan from "morgan";
+import rateLimit from "express-rate-limit";
 
 import { network, port, whitelistedNodeUrls, canRecalcCache } from "./config";
 import blockRouter from "./routes/block.route";
@@ -38,8 +39,15 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 app.enable("trust proxy");
-// app.set("trust proxy", 2);
 app.use(morgan("combined"));
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use(apiLimiter);
 
 app.use(checkDatabaseConn);
 
