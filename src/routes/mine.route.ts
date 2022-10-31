@@ -4,6 +4,7 @@ import { BlocksInfo, Utxos } from "../models";
 import params from "../params";
 import {
   createOutput,
+  createInput,
   calculateBlockReward,
   createTransaction,
   calculateTransactionHash,
@@ -16,6 +17,7 @@ import { calculateDifficulty, getHeadBlock } from "../controllers/blockchain.con
 import { validateCandidateBlock } from "../controllers/validation.controller";
 import { Block, Transaction } from "../models/types";
 import { mapVCode, VCODE } from "../helpers/validation-codes";
+import { nodeDonationPercent, nodeDonationAddress } from "../config";
 
 const router = Router();
 
@@ -77,14 +79,25 @@ router.post(
     }
 
     const fees = Math.max(totalInput - totalOutput, 0);
-    const output = createOutput(
-      miner,
-      calculateBlockReward(params, previousBlock.height + 1) + fees
-    );
-    const coinbase = createTransaction(params, [], [output]);
+    const blockReward = calculateBlockReward(params, previousBlock.height + 1);
+    const donationAmount = Math.floor(blockReward * nodeDonationPercent);
+
+    // coinbase transaction
+    const coinbaseOutput = createOutput(miner, blockReward + fees);
+    const coinbase = createTransaction(params, [], [coinbaseOutput]);
     coinbase.hash = calculateTransactionHash(coinbase);
 
-    const block = await createBlock(params, previousBlock, [coinbase, ...transactions]);
+    // donation transaction
+    const donationOutput = createOutput(nodeDonationAddress, donationAmount);
+    const donationChangeOutput = createOutput(miner, blockReward - donationAmount);
+    const donationInput = createInput(coinbase.hash, 0, ""); // pubkey, signature, and tx hash to be filled by miner's client
+    const donation = createTransaction(
+      params,
+      [donationInput],
+      [donationOutput, donationChangeOutput]
+    );
+
+    const block = await createBlock(params, previousBlock, [coinbase, donation, ...transactions]); // block hash to be found by miner client
     const target = bigIntToHex64(calculateHashTarget(params, block));
 
     // const validation = await validateCandidateBlock(block);

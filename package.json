@@ -6,8 +6,8 @@
   "scripts": {
     "build": "tsc",
     "dev": "nodemon src/index.ts",
-    "dev:testnet:alpha": "cross-env DOTENV_CONFIG_PATH=alpha.testnet.env nodemon -r dotenv/config src/index.ts",
     "dev:mainnet:alpha": "cross-env DOTENV_CONFIG_PATH=alpha.mainnet.env nodemon -r dotenv/config src/index.ts",
+    "dev:testnet:alpha": "cross-env DOTENV_CONFIG_PATH=alpha.testnet.env nodemon -r dotenv/config src/index.ts",
     "dev:testnet:beta": "cross-env DOTENV_CONFIG_PATH=beta.testnet.env nodemon -r dotenv/config src/index.ts",
     "start": "node dist/index.js",
     "postinstall": "tsc",
