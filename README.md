@@ -3,8 +3,8 @@
 Node which hosts and synchronizes a copy of the entire Bobcoin blockchain and relays information like blocks and transactions to other nodes in the peer to peer network.
 
 ## Deployed sites
-Alpha Mainnet: https://alpha.mainnet.bobcoin.cash
-Alpha Testnet: https://alpha.testnet.bobcoin.cash
+- Alpha Mainnet: https://alpha.mainnet.bobcoin.cash
+- Alpha Testnet: https://alpha.testnet.bobcoin.cash
 
 # Deploying to AWS EC2
 
