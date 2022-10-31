@@ -30,6 +30,54 @@ router.get("/mine/info", async (req, res) => {
 });
 
 router.post(
+  "/mine/candidate-block/info",
+  rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 2,
+    standardHeaders: true,
+    legacyHeaders: false,
+  }),
+  async (req, res) => {
+    const transactions = req.body.transactions ?? [];
+
+    let totalInput = 0;
+    let totalOutput = 0;
+
+    const newUtxos = [];
+    for (const transaction of transactions) {
+      for (const input of transaction.inputs) {
+        let utxo = newUtxos.find(
+          utxo => utxo.txHash === input.txHash && utxo.outIndex === input.outIndex
+        );
+        if (!utxo)
+          // not in new utxos list
+          utxo = await Utxos.findOne(
+            { txHash: input.txHash, outIndex: input.outIndex },
+            { _id: 0 }
+          ).lean();
+        totalInput += utxo?.amount ?? 0; // utxo may be null, in that case it should fail when validating
+      }
+
+      for (let i = 0; i < transaction.outputs.length; i++) {
+        const output = transaction.outputs[i];
+        totalOutput += output.amount;
+        newUtxos.push({
+          txHash: transaction.hash,
+          outIndex: i,
+          address: output.address,
+          amount: output.amount,
+        });
+      }
+    }
+
+    const previousBlock = await getHeadBlock();
+    const difficulty = await calculateDifficulty(previousBlock);
+
+    res.send({ previousBlock, difficulty, fees: Math.max(totalInput - totalOutput, 0) });
+  }
+);
+
+router.post(
   "/mine/candidate-block",
   rateLimit({
     windowMs: 60 * 1000, // 1 minute
