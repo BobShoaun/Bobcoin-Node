@@ -4,6 +4,21 @@ Node which hosts and synchronizes a copy of the entire Bobcoin blockchain and re
 
 # Deploying to AWS EC2
 
+After updated code is pushed to Github repository and ready to be deployed
+
+```
+ssh ec2-user@<ec2-ip-address> -i "<path-to-pem-file>"
+
+cd /Bobcoin-Node
+
+git pull
+
+npm run build
+
+pm2 restart 0
+
+```
+
 ## setup pm2
 
 ```
