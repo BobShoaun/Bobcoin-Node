@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-import { mongoURI } from "../config";
+import { mongoURI, network } from "../config";
 
 export const connectMongoDB = async () => {
   try {
@@ -11,7 +11,7 @@ export const connectMongoDB = async () => {
       useFindAndModify: false,
     });
 
-    console.log("MongoDB connection established");
+    console.log("MongoDB connection established to", network);
   } catch (e) {
     console.error("could not connect to MongoDB:", e);
   }

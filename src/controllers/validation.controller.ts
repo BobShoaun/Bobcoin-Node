@@ -151,6 +151,7 @@ export const validateBlock = async (block: Block) => {
 };
 
 // blocks doesnt have to be sorted.
+// TODO: optimize with async iters
 export const validateBlockchain = (blocks: Block[]) => {
   const blocksPerHeight: Block[][] = []; // array of array
   for (const block of blocks) {

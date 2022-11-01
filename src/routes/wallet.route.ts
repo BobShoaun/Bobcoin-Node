@@ -32,11 +32,19 @@ router.post("/wallet/info", async (req, res) => {
   let numBlocksMined = 0;
 
   for (const transaction of transactions) {
-    if (transaction.inputs.length === 0) numBlocksMined++;
-    for (const input of transaction.inputs)
-      if (addresses.includes(input.address)) totalSent += input.amount;
-    for (const output of transaction.outputs)
-      if (addresses.includes(output.address)) totalReceived += output.amount;
+    if (!transaction.inputs.length) numBlocksMined++;
+
+    const inputAmount = transaction.inputs
+      .filter(input => addresses.includes(input.address))
+      .reduce((sum, input) => sum + input.amount, 0);
+    const outputAmount = transaction.outputs
+      .filter(output => addresses.includes(output.address))
+      .reduce((sum, output) => sum + output.amount, 0);
+
+    const difference = Math.abs(inputAmount - outputAmount);
+
+    if (inputAmount > outputAmount) totalSent += difference;
+    else totalReceived += difference;
   }
 
   res.send({ balance, totalReceived, totalSent, numUtxos, numTransactions, numBlocksMined });

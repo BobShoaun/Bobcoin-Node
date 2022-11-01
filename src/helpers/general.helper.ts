@@ -5,6 +5,8 @@ import { BlockInfo, Utxo } from "../models/types";
 export const recalculateCache = async () => {
   const blocks = (await Blocks.find().sort({ height: -1 }).lean()) as BlockInfo[];
 
+  if (!blocks.length) return;
+
   console.log("\nCalculating head block...");
 
   // find headblock as earliest highest block

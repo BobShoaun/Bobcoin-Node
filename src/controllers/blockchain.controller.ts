@@ -7,6 +7,8 @@ export const getHeadBlock = async () =>
 
 // calculate difficulty for next block from current block
 export const calculateDifficulty = async (block: Block) => {
+  if (block.height < params.diffRecalcHeight) return params.initBlkDiff; // when its still early
+
   const offset = block.height % params.diffRecalcHeight;
   const currRecalcHeight = block.height - offset;
   const prevRecalcHeight = currRecalcHeight - params.diffRecalcHeight;
