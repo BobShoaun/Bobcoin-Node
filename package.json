@@ -11,7 +11,7 @@
     "dev:testnet:beta": "cross-env DOTENV_CONFIG_PATH=beta.testnet.env nodemon -r dotenv/config src/index.ts",
     "start": "node dist/index.js",
     "postinstall": "tsc",
-    "dump": "ts-node src/scripts/dumpBlockchain.ts",
+    "dump:testnet:alpha": "cross-env DOTENV_CONFIG_PATH=alpha.testnet.env ts-node -r dotenv/config src/scripts/dumpBlockchain.ts",
     "read": "ts-node src/scripts/readBlockchain.ts dumps/mainnet.json",
     "prune:mainnet:alpha": "cross-env DOTENV_CONFIG_PATH=alpha.mainnet.env ts-node -r dotenv/config src/scripts/pruneBlockchain.ts",
     "prune:testnet:alpha": "cross-env DOTENV_CONFIG_PATH=alpha.testnet.env ts-node -r dotenv/config src/scripts/pruneBlockchain.ts",

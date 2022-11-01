@@ -6,7 +6,7 @@ import { Blocks, BlocksInfo, Utxos, Mempool } from "../models";
 import { validateBlock } from "../controllers/validation.controller";
 import { VCODE } from "../helpers/validation-codes";
 import { getValidMempool } from "../controllers/mempool.controller";
-import { Block } from "../models/types";
+import { Block, BlockInfo } from "../models/types";
 import { getHeadBlock } from "../controllers/blockchain.controller";
 
 const router = Router();
@@ -86,18 +86,27 @@ const appendValidBlock = async blockInfo => {
   for (const transaction of blockInfo.transactions) {
     for (const input of transaction.inputs) {
       // record spending tx in output
-      const utxoBlock = await BlocksInfo.findOne({
-        "transactions.hash": input.txHash,
-        valid: true,
-      });
-      const stxo = utxoBlock.transactions.find(tx => tx.hash === input.txHash).outputs[
+      let utxoBlock = blockInfo;
+
+      // check own block first
+      let stxo = utxoBlock.transactions.find(tx => tx.hash === input.txHash)?.outputs[
         input.outIndex
       ];
+      if (!stxo) {
+        // check previous blocks
+        utxoBlock = await BlocksInfo.findOne({
+          "transactions.hash": input.txHash,
+          valid: true,
+        });
+        stxo = utxoBlock.transactions.find(tx => tx.hash === input.txHash).outputs[input.outIndex];
+      }
+
       // update input info
       input.address = stxo.address;
       input.amount = stxo.amount;
       // update output info
       stxo.txHash = transaction.hash;
+
       await utxoBlock.save();
       await Utxos.deleteOne({ txHash: input.txHash, outIndex: input.outIndex });
     }
