@@ -207,6 +207,27 @@ export const validateBlockchain = (blocks: Block[]) => {
     let blkTotalInput = 0;
     let blkTotalOutput = 0;
 
+    // ---- coinbase transaction ----
+    const coinbaseTx = block.transactions[0];
+    if (!coinbaseTx.timestamp) return mapVCode(VCODE.CB00);
+    if (!coinbaseTx.version) return mapVCode(VCODE.CB01);
+    if (coinbaseTx.inputs.length) return mapVCode(VCODE.CB02); // coinbase must not have inputs
+    if (coinbaseTx.outputs.length !== 1) return mapVCode(VCODE.CB03); // wrong output length
+    if (coinbaseTx.hash !== calculateTransactionHash(coinbaseTx)) return mapVCode(VCODE.CB04); // hash is invalid
+    if (!isAddressValid(params, coinbaseTx.outputs[0].address)) return mapVCode(VCODE.CB05); // miner address invalid
+
+    const coinbaseAmt = coinbaseTx.outputs[0].amount;
+    if (!coinbaseAmt) return mapVCode(VCODE.CB06); // output amount invalid
+    // add output to utxos
+    utxos.push({
+      txHash: coinbaseTx.hash,
+      outIndex: 0,
+      address: coinbaseTx.outputs[0].address,
+      amount: coinbaseAmt,
+    });
+    blkTotalOutput += coinbaseAmt;
+    // ---- end coinbase tx ----
+
     // ----- transactions -----
     for (let i = 1; i < block.transactions.length; i++) {
       const transaction = block.transactions[i];
@@ -253,29 +274,11 @@ export const validateBlockchain = (blocks: Block[]) => {
     }
     // ----- end transactions -----
 
-    // ---- coinbase transaction ----
-    const coinbaseTx = block.transactions[0];
-    if (!coinbaseTx.timestamp) return mapVCode(VCODE.CB00);
-    if (!coinbaseTx.version) return mapVCode(VCODE.CB01);
-    if (coinbaseTx.inputs.length) return mapVCode(VCODE.CB02); // coinbase must not have inputs
-    if (coinbaseTx.outputs.length !== 1) return mapVCode(VCODE.CB03); // wrong output length
-    if (coinbaseTx.hash !== calculateTransactionHash(coinbaseTx)) return mapVCode(VCODE.CB04); // hash is invalid
-    if (!isAddressValid(params, coinbaseTx.outputs[0].address)) return mapVCode(VCODE.CB05); // miner address invalid
-
-    const coinbaseAmt = coinbaseTx.outputs[0].amount;
-    if (!coinbaseAmt) return mapVCode(VCODE.CB06); // output amount invalid
-    const fee = blkTotalInput - blkTotalOutput;
+    // ---- coinbase block reward ----
     const blockReward = calculateBlockReward(params, block.height);
-    if (coinbaseAmt !== fee + blockReward)
-      return mapVCode(VCODE.CB07, fee + blockReward, coinbaseAmt); // coinbase amt larger than allowed
-    // add output to utxos
-    utxos.push({
-      txHash: coinbaseTx.hash,
-      outIndex: 0,
-      address: coinbaseTx.outputs[0].address,
-      amount: coinbaseAmt,
-    });
-    // ---- end coinbase tx ----
+    if (blkTotalOutput - blkTotalInput !== blockReward)
+      return mapVCode(VCODE.CB07, blockReward, blkTotalOutput - blkTotalInput); // coinbase amt larger than allowed, or invalid block reward amount
+    // ---- end coinbase block reward ----
 
     const nextBlocks =
       blocksPerHeight[block.height + 1]?.filter(b => b.previousHash === block.hash) ?? [];

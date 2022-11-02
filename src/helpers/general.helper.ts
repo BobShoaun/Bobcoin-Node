@@ -1,26 +1,28 @@
 import { Blocks, BlocksInfo, Utxos } from "../models";
 import { BlockInfo, Utxo } from "../models/types";
 
-// TODO: optimize with async iterators
+// TODO: optimize with async iterators (cant)
 export const recalculateCache = async () => {
-  const blocks = (await Blocks.find().sort({ height: -1 }).lean()) as BlockInfo[];
-
-  if (!blocks.length) return;
-
   console.log("\nCalculating head block...");
 
   // find headblock as earliest highest block
-  const highest = blocks[0].height; // highest block is first
-  let headBlock = blocks[0];
-  for (const block of blocks) {
-    if (block.height !== highest) break;
-    if (headBlock.timestamp > block.timestamp) headBlock = block;
-  }
+  const headBlock = (
+    await Blocks.find()
+      .sort([
+        ["height", -1],
+        ["timestamp", 1],
+      ])
+      .limit(1)
+      .lean()
+  )[0];
 
   console.log("head block height:", headBlock.height);
   console.log("head block hash:", headBlock.hash);
 
   console.log("\nCalculating valid chain...");
+
+  const blocks = (await Blocks.find().sort({ height: -1 }).lean()) as BlockInfo[];
+  if (!blocks.length) return;
 
   let currHash = headBlock.hash;
   for (const block of blocks) {
@@ -36,6 +38,7 @@ export const recalculateCache = async () => {
     console.error("FATAL: something is wrong with the valid chain!");
     process.exit();
   }
+  console.log("valid blocks count:", validBlocks.length);
 
   console.log("\nCalculating utxos and block information...");
 
@@ -75,7 +78,7 @@ export const recalculateCache = async () => {
         if (!block.valid) continue;
         // record spenting tx hash in tx output only for valid chain
 
-        for (let i = block.height - 1; i >= 0; i--) {
+        for (let i = block.height; i >= 0; i--) {
           const validBlock = blocksPerHeight[i].find(b => b.valid);
           const tx = validBlock.transactions.find(tx => tx.hash === utxo.txHash);
           if (tx) {
@@ -112,12 +115,19 @@ export const recalculateCache = async () => {
     }
   }
 
+  console.log("blocks count:", blocks.length);
   console.log("utxos count:", headBlockUtxos.length);
 
-  await BlocksInfo.deleteMany();
-  await BlocksInfo.insertMany(blocks).catch(err => console.log(err));
-  await Utxos.deleteMany();
-  await Utxos.insertMany(headBlockUtxos);
+  await Promise.all([
+    (async () => {
+      await BlocksInfo.deleteMany();
+      await BlocksInfo.insertMany(blocks).catch(err => console.log(err));
+    })(),
+    (async () => {
+      await Utxos.deleteMany();
+      await Utxos.insertMany(headBlockUtxos);
+    })(),
+  ]);
 
-  console.log("\nCache calculation completed and stored in mongodb.");
+  console.log("\nCache calculation completed and stored in database.");
 };

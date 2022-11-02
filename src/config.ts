@@ -15,7 +15,7 @@ export const faucetDonateAmount = 10_00_000_000; // in integer denomination
 export const faucetFeeAmount = 10_000_000;
 export const faucetCooldown = 24; // hours
 
-export const nodeDonationPercent = 0.1;
-export const nodeDonationAddress = "8GEN8Ab66ydbi82Q3wVcVwWKpvRVphN";
+// export const nodeDonationPercent = 0.1;
+// export const nodeDonationAddress = "8WHdkueKmPjbmAH1Va9uZpC2v7Xbqkw";
 
 export const whitelistedNodeUrls = process.env.WHITELISTED_NODE_URLS?.split(" ") ?? [];

@@ -105,7 +105,7 @@ export const mapVCode = (code, ...args) => {
     case VCODE.CB06:
       return { code, msg: "output amount is negative or zero." };
     case VCODE.CB07:
-      return { code, msg: `invalid coinbase amount, expected: ${args[0]} actual: ${args[1]}` };
+      return { code, msg: `invalid block reward, expected: ${args[0]} actual: ${args[1]}` };
 
     // blockchain
     case VCODE.BC00:

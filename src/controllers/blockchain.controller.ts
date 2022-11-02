@@ -6,16 +6,16 @@ export const getHeadBlock = async () =>
   (await BlocksInfo.find({ valid: true }, { _id: 0 }).sort({ height: -1 }).limit(1))[0];
 
 // calculate difficulty for next block from current block
-export const calculateDifficulty = async (block: Block) => {
-  if (block.height < params.diffRecalcHeight) return params.initBlkDiff; // when its still early
+export const calculateDifficulty = async ({ height: blockHeight, hash: blockHash }) => {
+  if (blockHeight < params.diffRecalcHeight) return params.initBlkDiff; // when its still early
 
-  const offset = block.height % params.diffRecalcHeight;
-  const currRecalcHeight = block.height - offset;
+  const offset = blockHeight % params.diffRecalcHeight;
+  const currRecalcHeight = blockHeight - offset;
   const prevRecalcHeight = currRecalcHeight - params.diffRecalcHeight;
 
-  let currRecalcBlock: Block | any = { previousHash: block.hash };
+  let currRecalcBlock: Block | any = { previousHash: blockHash };
   // @ts-ignore
-  for await (const currBlock of Blocks.find({ height: { $lte: block.height } }).sort({
+  for await (const currBlock of Blocks.find({ height: { $lte: blockHeight } }).sort({
     height: -1,
   })) {
     if (currRecalcBlock.previousHash !== currBlock.hash) continue;

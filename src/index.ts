@@ -48,9 +48,7 @@ const apiLimiter = rateLimit({
   legacyHeaders: false,
 });
 app.use(apiLimiter);
-
 app.use(checkDatabaseConn);
-
 app.use(blockRouter);
 app.use(transactionRouter);
 app.use(utxoRouter);
