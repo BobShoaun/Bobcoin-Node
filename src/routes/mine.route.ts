@@ -37,6 +37,8 @@ router.post(
     legacyHeaders: false,
   }),
   async (req, res) => {
+    return res.sendStatus(501);
+
     const transactions = req.body.transactions ?? [];
     const { parentBlockHash } = req.body;
 

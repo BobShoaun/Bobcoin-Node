@@ -94,10 +94,6 @@ app.all("*", (_, res) => res.sendStatus(404));
       console.log("Client disconnected:", socket.conn.server.clientsCount, "total");
     });
 
-    socket.on("get-blockchain", () => {
-      console.log("someone wants blockcahin");
-    });
-
     socket.emit("initialize", {
       params,
       headBlock: await getHeadBlock(),
@@ -107,21 +103,22 @@ app.all("*", (_, res) => res.sendStatus(404));
   app.locals.io = socketServer;
 
   // setup socket io client
-  for (const nodeUrl of whitelistedNodeUrls) {
-    const socketClient = io(nodeUrl);
-    socketClient.on("connection", () => {
-      console.log("connected to socket", nodeUrl);
-    });
-    // socketClient.on("initialize", () => {
-    //   console.log("socket client init");
-    // });
+  // for (const nodeUrl of whitelistedNodeUrls) {
+  //   console.log("nodeUrl", nodeUrl);
+  //   const socketClient = io(nodeUrl);
+  //   socketClient.on("connection", () => {
+  //     console.log("connected to socket", nodeUrl);
+  //   });
+  //   socketClient.on("initialize", () => {
+  //     console.log("socket client init");
+  //   });
 
-    // socketClient.emit("get-blockchain");
+  //   // socketClient.emit("get-blockchain");
 
-    socketClient.on("node-block", block => {
-      console.log("received block", block);
-    });
-  }
+  //   socketClient.on("new-block", block => {
+  //     console.log("received block", block);
+  //   });
+  // }
 
   const blocksCount = await Blocks.countDocuments();
   const blocksInfoCount = await BlocksInfo.countDocuments();
@@ -148,8 +145,7 @@ app.all("*", (_, res) => res.sendStatus(404));
     process.exit();
   }
 
-  const _port = process.env.PORT ?? port; // have to bind as late as possible for heroku
-  server.listen(_port, () => console.log("\nBobcoin Node listening on port:", _port));
+  server.listen(port, () => console.log("\nBobcoin Node listening on port:", port));
 })();
 
 const healthCheck = () => {
