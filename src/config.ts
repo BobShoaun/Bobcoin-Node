@@ -15,7 +15,14 @@ export const faucetDonateAmount = 10_00_000_000; // in integer denomination
 export const faucetFeeAmount = 10_000_000;
 export const faucetCooldown = 24; // hours
 
-// export const nodeDonationPercent = 0.1;
-// export const nodeDonationAddress = "8WHdkueKmPjbmAH1Va9uZpC2v7Xbqkw";
+export const nodeDonationPercent = 0.1;
+export const nodeDonationAddress = "8WHdkueKmPjbmAH1Va9uZpC2v7Xbqkw";
+
+// mining pool
+export const poolName = "Bobcoin Official Pool";
+export const poolAddress = "8GEN8Ab66ydbi82Q3wVcVwWKpvRVphN";
+export const poolOperatorFeePercent = 0.1;
+export const poolDifficultyPercent = 0.01;
+export const poolMinDifficulty = 0.1;
 
 export const whitelistedNodeUrls = process.env.WHITELISTED_NODE_URLS?.split(" ") ?? [];

@@ -18,6 +18,7 @@ import mempoolRouter from "./routes/mempool.route";
 import walletRouter from "./routes/wallet.route";
 import faucetRouter from "./routes/faucet.route";
 import blockchainRouter from "./routes/blockchain.route";
+import poolRouter from "./routes/pool.route";
 
 import { checkDatabaseConn } from "./middlewares/mongo.middleware";
 import { getValidMempool } from "./controllers/mempool.controller";
@@ -58,6 +59,7 @@ app.use(mempoolRouter);
 app.use(walletRouter);
 app.use(faucetRouter);
 app.use(blockchainRouter);
+app.use(poolRouter);
 
 app.get("/", async (_, res) => {
   const headBlock = await getHeadBlock();
@@ -72,7 +74,7 @@ app.get("/", async (_, res) => {
   // <pre>Utxos: ${JSON.stringify(await getUtxos(), null, 2)}</pre>
   res.send(message);
 });
-app.get("/ip", (request, response) => response.send(request.ip));
+app.get("/ip", (req, res) => res.send(req.ip));
 app.all("*", (_, res) => res.sendStatus(404));
 
 (async () => {

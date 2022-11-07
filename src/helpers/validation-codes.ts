@@ -97,11 +97,11 @@ export const mapVCode = (code, ...args) => {
     case VCODE.CB02:
       return { code, msg: "contains inputs." };
     case VCODE.CB03:
-      return { code, msg: "invalid output count." };
+      return { code, msg: "no outputs." };
     case VCODE.CB04:
       return { code, msg: "invalid hash." };
     case VCODE.CB05:
-      return { code, msg: "invalid miner address." };
+      return { code, msg: "output address invalid." };
     case VCODE.CB06:
       return { code, msg: "output amount is negative or zero." };
     case VCODE.CB07:

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
-import { BlocksInfo, Utxos } from "../models";
+import { BlocksInfo, Utxos, Blocks } from "../models";
 import params from "../params";
 import {
   createOutput,
@@ -17,6 +17,8 @@ import { calculateDifficulty, getHeadBlock } from "../controllers/blockchain.con
 import { validateCandidateBlock } from "../controllers/validation.controller";
 import { Block, Transaction } from "../models/types";
 import { mapVCode, VCODE } from "../helpers/validation-codes";
+import { calculateTransactionFees } from "../controllers/transaction.controller";
+import { nodeDonationPercent, nodeDonationAddress } from "../config";
 
 const router = Router();
 
@@ -37,135 +39,68 @@ router.post(
     legacyHeaders: false,
   }),
   async (req, res) => {
-    return res.sendStatus(501);
+    // return res.sendStatus(501);
 
     const transactions = req.body.transactions ?? [];
     const { parentBlockHash } = req.body;
 
-    let totalInput = 0;
-    let totalOutput = 0;
+    const fees = await calculateTransactionFees(transactions);
 
-    const newUtxos = [];
-    for (const transaction of transactions) {
-      for (const input of transaction.inputs) {
-        let utxo = newUtxos.find(
-          utxo => utxo.txHash === input.txHash && utxo.outIndex === input.outIndex
-        );
-        if (!utxo)
-          // not in new utxos list
-          utxo = await Utxos.findOne(
-            { txHash: input.txHash, outIndex: input.outIndex },
-            { _id: 0 }
-          ).lean();
-        totalInput += utxo?.amount ?? 0; // utxo may be null, in that case it should fail when validating
-      }
-
-      for (let i = 0; i < transaction.outputs.length; i++) {
-        const output = transaction.outputs[i];
-        totalOutput += output.amount;
-        newUtxos.push({
-          txHash: transaction.hash,
-          outIndex: i,
-          address: output.address,
-          amount: output.amount,
-        });
-      }
-    }
     const previousBlock =
       (await BlocksInfo.findOne({ hash: parentBlockHash }).lean()) ?? (await getHeadBlock());
 
     const difficulty = await calculateDifficulty(previousBlock);
-    res.send({ previousBlock, difficulty, fees: Math.max(totalInput - totalOutput, 0) });
+    res.send({ previousBlock, difficulty, fees });
   }
 );
 
-// router.post(
-//   "/mine/candidate-block",
-//   rateLimit({
-//     windowMs: 60 * 1000, // 1 minute
-//     max: 2,
-//     standardHeaders: true,
-//     legacyHeaders: false,
-//   }),
-//   async (req, res) => {
-//     const { previousBlockHash, miner } = req.body;
-//     const transactions = req.body.transactions ?? [];
-//     if (!miner) return res.sendStatus(400);
+router.post(
+  "/mine/candidate-block",
+  rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 2,
+    standardHeaders: true,
+    legacyHeaders: false,
+  }),
+  async (req, res) => {
+    const { previousBlockHash, miner } = req.body;
+    const _transactions = req.body.transactions ?? [];
+    if (!miner) return res.sendStatus(400);
 
-//     const previousBlock = previousBlockHash
-//       ? await BlocksInfo.findOne({ hash: previousBlockHash }, { _id: 0 })
-//       : await getHeadBlock();
+    const previousBlock = previousBlockHash
+      ? await Blocks.findOne({ hash: previousBlockHash }, "-_id hash height").lean()
+      : await getHeadBlock();
 
-//     if (!previousBlock) return res.status(404).send("Previous block not found.");
+    if (!previousBlock) return res.status(404).send("Previous block not found.");
 
-//     let totalInput = 0;
-//     let totalOutput = 0;
+    const fees = await calculateTransactionFees(_transactions);
+    const blockReward = calculateBlockReward(params, previousBlock.height + 1) + fees;
+    const donationAmount = Math.ceil(blockReward * nodeDonationPercent);
+    const coinbaseAmount = blockReward - donationAmount;
 
-//     const newUtxos = [];
-//     for (const transaction of transactions) {
-//       for (const input of transaction.inputs) {
-//         let utxo = newUtxos.find(
-//           utxo => utxo.txHash === input.txHash && utxo.outIndex === input.outIndex
-//         );
-//         if (!utxo)
-//           // not in new utxos list
-//           utxo = await Utxos.findOne(
-//             { txHash: input.txHash, outIndex: input.outIndex },
-//             { _id: 0 }
-//           ).lean();
-//         totalInput += utxo?.amount ?? 0; // utxo may be null, in that case it should fail when validating
-//       }
+    // coinbase transaction
+    const coinbaseOutput = createOutput(miner, coinbaseAmount);
+    const donationOutput = createOutput(nodeDonationAddress, donationAmount);
+    const coinbase = createTransaction(params, [], [coinbaseOutput, donationOutput]);
+    coinbase.hash = calculateTransactionHash(coinbase);
 
-//       for (let i = 0; i < transaction.outputs.length; i++) {
-//         const output = transaction.outputs[i];
-//         totalOutput += output.amount;
-//         newUtxos.push({
-//           txHash: transaction.hash,
-//           outIndex: i,
-//           address: output.address,
-//           amount: output.amount,
-//         });
-//       }
-//     }
+    const transactions = [coinbase, ..._transactions];
+    const candidateBlock = {
+      height: previousBlock.height + 1,
+      previousHash: previousBlock.hash,
+      merkleRoot: calculateMerkleRoot(transactions.map(tx => tx.hash)),
+      timestamp: Date.now(),
+      version: params.version,
+      difficulty: await calculateDifficulty(previousBlock),
+      nonce: 0,
+      hash: "",
+      transactions,
+    };
 
-//     const fees = Math.max(totalInput - totalOutput, 0);
-//     const blockReward = calculateBlockReward(params, previousBlock.height + 1);
-//     const donationAmount = Math.floor(blockReward * nodeDonationPercent);
-
-//     // coinbase transaction
-//     const coinbaseOutput = createOutput(miner, blockReward + fees);
-//     const coinbase = createTransaction(params, [], [coinbaseOutput]);
-//     coinbase.hash = calculateTransactionHash(coinbase);
-
-//     // donation transaction
-//     const donationOutput = createOutput(nodeDonationAddress, donationAmount);
-//     const donationChangeOutput = createOutput(miner, blockReward - donationAmount);
-//     const donationInput = createInput(coinbase.hash, 0, ""); // pubkey, signature, and tx hash to be filled by miner's client
-//     const donation = createTransaction(
-//       params,
-//       [donationInput],
-//       [donationOutput, donationChangeOutput]
-//     );
-
-//     const block = await createBlock(params, previousBlock, [coinbase, donation, ...transactions]); // block hash to be found by miner client
-//     const target = bigIntToHex64(calculateHashTarget(params, block));
-
-//     // const validation = await validateCandidateBlock(block);
-//     const validation = mapVCode(VCODE.VALID); // FIXME: temporary disable candidate block validation
-//     res.send({ validation, block, target });
-//   }
-// );
-
-// const createBlock = async (params, previousBlock: Block, transactions: Transaction[]) => ({
-//   height: previousBlock.height + 1,
-//   previousHash: previousBlock.hash,
-//   transactions,
-//   timestamp: Date.now(),
-//   version: params.version,
-//   difficulty: await calculateDifficulty(previousBlock),
-//   merkleRoot: calculateMerkleRoot(transactions.map(tx => tx.hash)),
-//   nonce: 0,
-//   hash: "",
-// });
+    // const validation = await validateCandidateBlock(block);
+    const validation = mapVCode(VCODE.VALID); // FIXME: temporary disable candidate block validation
+    res.send({ validation, candidateBlock });
+  }
+);
 
 export default router;

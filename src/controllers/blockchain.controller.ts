@@ -3,7 +3,7 @@ import { Block } from "../models/types";
 import params from "../params";
 
 export const getHeadBlock = async () =>
-  (await BlocksInfo.find({ valid: true }, { _id: 0 }).sort({ height: -1 }).limit(1))[0];
+  (await BlocksInfo.find({ valid: true }, "-_id").lean().sort({ height: -1 }).limit(1))[0];
 
 // calculate difficulty for next block from current block
 export const calculateDifficulty = async ({ height: blockHeight, hash: blockHash }) => {

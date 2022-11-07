@@ -29,7 +29,7 @@ const testnetParams = {
   initBlkReward: 4096 * 100_000_000, // in coins
   blkRewardHalflife: 200, // in block height
   initBlkDiff: 1,
-  initHashTarg: "0000afffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  initHashTarg: "0000afffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", // max target
   targBlkTime: 5 * 60, // 5 minutes in seconds
   diffRecalcHeight: 50, // in block height
   minDiffCorrFact: 1 / 4,
@@ -74,7 +74,7 @@ const mainnetParams = {
   initBlkReward: 512 * 100_000_000, // in coins
   blkRewardHalflife: 10_100, // in block height
   initBlkDiff: 1,
-  initHashTarg: "000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  initHashTarg: "000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", // max target
   targBlkTime: 8 * 60, // 8 minutes in seconds
   diffRecalcHeight: 50, // in block height
   minDiffCorrFact: 1 / 4,

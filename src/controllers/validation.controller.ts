@@ -103,12 +103,9 @@ export const validateCandidateBlock = async (block: Block) => {
     }
 
     let txTotalOutput = 0;
-    for (let j = 0; j < transaction.outputs.length; j++) {
-      const address = transaction.outputs[j].address;
-      const amount = transaction.outputs[j].amount;
+    for (const { address, amount } of transaction.outputs) {
       if (!isAddressValid(params, address)) return mapVCode(VCODE.TX08);
       if (amount <= 0) return mapVCode(VCODE.TX09); // output amount invalid
-
       txTotalOutput += amount;
     }
 
@@ -124,12 +121,16 @@ export const validateCandidateBlock = async (block: Block) => {
   if (!coinbaseTx.timestamp) return mapVCode(VCODE.CB00);
   if (!coinbaseTx.version) return mapVCode(VCODE.CB01);
   if (coinbaseTx.inputs.length) return mapVCode(VCODE.CB02); // coinbase must not have inputs
-  if (coinbaseTx.outputs.length !== 1) return mapVCode(VCODE.CB03); // wrong output length
+  if (!coinbaseTx.outputs.length) return mapVCode(VCODE.CB03); // no outputs
   if (coinbaseTx.hash !== calculateTransactionHash(coinbaseTx)) return mapVCode(VCODE.CB04); // hash is invalid
-  if (!isAddressValid(params, coinbaseTx.outputs[0].address)) return mapVCode(VCODE.CB05); // miner address invalid
 
-  const coinbaseAmt = coinbaseTx.outputs[0].amount;
-  if (!coinbaseAmt) return mapVCode(VCODE.CB06); // output amount invalid
+  let coinbaseAmt = 0;
+  for (const { address, amount } of coinbaseTx.outputs) {
+    if (!isAddressValid(params, address)) return mapVCode(VCODE.CB05); // output address invalid
+    if (amount < 0) return mapVCode(VCODE.CB06); // output amount invalid (can be 0 though)
+    coinbaseAmt += amount;
+  }
+
   const fee = blkTotalInput - blkTotalOutput;
   const blockReward = calculateBlockReward(params, block.height);
   if (coinbaseAmt !== fee + blockReward)
@@ -193,10 +194,8 @@ export const validateBlockchain = (blocks: Block[]) => {
     if (block.version === "1.2.0" || block.version === "0.1.0")
       block.difficulty = block.difficulty.toFixed(4); // account for error/bug when calculating hash with difficulty as string.
 
-    if (block.hash !== calculateBlockHash(block)) {
-      console.log("invalid block", block);
-      return mapVCode(VCODE.BK05); // "invalid block hash";
-    }
+    if (block.hash !== calculateBlockHash(block)) return mapVCode(VCODE.BK05); // "invalid block hash";
+
     if (block.merkleRoot !== calculateMerkleRoot(block.transactions.map(tx => tx.hash)))
       return mapVCode(VCODE.BK06); // "invalid merkle root"
 
@@ -212,20 +211,24 @@ export const validateBlockchain = (blocks: Block[]) => {
     if (!coinbaseTx.timestamp) return mapVCode(VCODE.CB00);
     if (!coinbaseTx.version) return mapVCode(VCODE.CB01);
     if (coinbaseTx.inputs.length) return mapVCode(VCODE.CB02); // coinbase must not have inputs
-    if (coinbaseTx.outputs.length !== 1) return mapVCode(VCODE.CB03); // wrong output length
+    if (!coinbaseTx.outputs.length) return mapVCode(VCODE.CB03); // no outputs
     if (coinbaseTx.hash !== calculateTransactionHash(coinbaseTx)) return mapVCode(VCODE.CB04); // hash is invalid
-    if (!isAddressValid(params, coinbaseTx.outputs[0].address)) return mapVCode(VCODE.CB05); // miner address invalid
 
-    const coinbaseAmt = coinbaseTx.outputs[0].amount;
-    if (!coinbaseAmt) return mapVCode(VCODE.CB06); // output amount invalid
-    // add output to utxos
-    utxos.push({
-      txHash: coinbaseTx.hash,
-      outIndex: 0,
-      address: coinbaseTx.outputs[0].address,
-      amount: coinbaseAmt,
-    });
-    blkTotalOutput += coinbaseAmt;
+    for (let i = 0; i < coinbaseTx.outputs.length; i++) {
+      const { address, amount } = coinbaseTx.outputs[i];
+      if (!isAddressValid(params, address)) return mapVCode(VCODE.CB05); // output address invalid
+      if (amount < 0) return mapVCode(VCODE.CB06); // output amount invalid (can be 0 though)
+
+      // add output to utxos
+      utxos.push({
+        txHash: coinbaseTx.hash,
+        outIndex: i,
+        address,
+        amount,
+      });
+      blkTotalOutput += amount;
+    }
+
     // ---- end coinbase tx ----
 
     // ----- transactions -----
