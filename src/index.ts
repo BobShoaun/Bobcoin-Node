@@ -30,7 +30,6 @@ import params from "./params";
 
 import { validateBlock } from "./controllers/validation.controller";
 import { Block, BlockInfo } from "./models/types";
-import { calculateBlockHash } from "blockcrypto";
 import { Blocks, BlocksInfo, Mempool, Utxos } from "./models";
 
 const app = express();
@@ -131,7 +130,7 @@ app.all("*", (_, res) => res.sendStatus(404));
     // setup blockchain, add genesis block
     console.log("Genesis block does not exist, creating.");
     await Blocks.create(params.genesisBlock);
-    const blockInfo = { ...params.genesisBlock, valid: true } as BlockInfo;
+    const blockInfo = { ...params.genesisBlock, valid: true };
     await BlocksInfo.create(blockInfo);
 
     for (const transaction of blockInfo.transactions) {

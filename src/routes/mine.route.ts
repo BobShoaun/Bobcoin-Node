@@ -4,13 +4,11 @@ import { BlocksInfo, Utxos, Blocks } from "../models";
 import params from "../params";
 import {
   createOutput,
-  createInput,
   calculateBlockReward,
   createTransaction,
   calculateTransactionHash,
-  calculateHashTarget,
-  bigIntToHex64,
   calculateMerkleRoot,
+  createBlock,
 } from "blockcrypto";
 import { getValidMempool } from "../controllers/mempool.controller";
 import { calculateDifficulty, getHeadBlock } from "../controllers/blockchain.controller";
@@ -85,17 +83,12 @@ router.post(
     coinbase.hash = calculateTransactionHash(coinbase);
 
     const transactions = [coinbase, ..._transactions];
-    const candidateBlock = {
-      height: previousBlock.height + 1,
-      previousHash: previousBlock.hash,
-      merkleRoot: calculateMerkleRoot(transactions.map(tx => tx.hash)),
-      timestamp: Date.now(),
-      version: params.version,
-      difficulty: await calculateDifficulty(previousBlock),
-      nonce: 0,
-      hash: "",
-      transactions,
-    };
+    const candidateBlock = createBlock(
+      params,
+      previousBlock,
+      await calculateDifficulty(previousBlock),
+      transactions
+    );
 
     // const validation = await validateCandidateBlock(block);
     const validation = mapVCode(VCODE.VALID); // FIXME: temporary disable candidate block validation

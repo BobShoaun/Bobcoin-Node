@@ -55,6 +55,7 @@ const calculatePoolInfo = async () => {
   // reward distribution transaction (no fees required)
 
   const poolTransactions = [coinbase, ...selectedTxs];
+
   const poolCandidateBlockHeader = {
     height: previousBlock.height + 1,
     previousHash: previousBlock.hash,

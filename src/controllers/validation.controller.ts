@@ -1,12 +1,12 @@
 import params from "../params";
 import {
+  calculateBlockHash,
   calculateBlockReward,
   calculateTransactionHash,
+  calculateTransactionPreImage,
   calculateHashTarget,
   calculateMerkleRoot,
-  calculateBlockHash,
-  getAddressFromPKHex,
-  calculateTransactionPreImage,
+  getAddressFromPublicKey,
   isAddressValid,
   isSignatureValid,
   hexToBigInt,
@@ -94,7 +94,7 @@ export const validateCandidateBlock = async (block: Block) => {
 
       if (!utxo) return mapVCode(VCODE.TX05, input.txHash, input.outIndex); // utxo not found, got to genesis block
 
-      if (utxo.address !== getAddressFromPKHex(params, input.publicKey))
+      if (utxo.address !== getAddressFromPublicKey(params, input.publicKey))
         return mapVCode(VCODE.TX06);
       if (!isSignatureValid(input.signature, input.publicKey, preImage))
         return mapVCode(VCODE.TX07); // signature not valid
@@ -248,7 +248,7 @@ export const validateBlockchain = (blocks: Block[]) => {
           utxo => utxo.txHash === input.txHash && utxo.outIndex === input.outIndex
         );
         if (utxoIdx < 0) return mapVCode(VCODE.TX05, input.txHash, input.outIndex); // utxo not found
-        if (utxos[utxoIdx].address !== getAddressFromPKHex(params, input.publicKey))
+        if (utxos[utxoIdx].address !== getAddressFromPublicKey(params, input.publicKey))
           return mapVCode(VCODE.TX06);
         if (!isSignatureValid(input.signature, input.publicKey, preImage))
           return mapVCode(VCODE.TX07); // signature not valid

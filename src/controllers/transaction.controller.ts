@@ -2,7 +2,7 @@ import { Mempool, Utxos } from "../models";
 import { mapVCode, VCODE } from "../helpers/validation-codes";
 import {
   calculateTransactionHash,
-  getAddressFromPKHex,
+  getAddressFromPublicKey,
   calculateTransactionPreImage,
   isAddressValid,
   isSignatureValid,
@@ -11,7 +11,6 @@ import {
   createOutput,
   createTransaction,
   signTransaction,
-  RESULT,
 } from "blockcrypto";
 import params from "../params";
 
@@ -40,7 +39,8 @@ export const validateTransaction = async (transaction: Transaction) => {
   for (const input of transaction.inputs) {
     const utxo = await Utxos.findOne({ txHash: input.txHash, outIndex: input.outIndex });
     if (!utxo) return mapVCode(VCODE.TX05, input.txHash, input.outIndex);
-    if (utxo.address !== getAddressFromPKHex(params, input.publicKey)) return mapVCode(VCODE.TX06);
+    if (utxo.address !== getAddressFromPublicKey(params, input.publicKey))
+      return mapVCode(VCODE.TX06);
     if (!isSignatureValid(input.signature, input.publicKey, preImage)) return mapVCode(VCODE.TX07); // signature not valid
     totalInput += utxo.amount;
   }
@@ -62,7 +62,7 @@ export const createSimpleTransaction = async (
   amount: number,
   fee: number
 ) => {
-  const { pk: senderPublicKey, address: senderAddress } = getKeys(params, senderSecretKey);
+  const { publicKey: senderPublicKey, address: senderAddress } = getKeys(params, senderSecretKey);
 
   const utxos = await getMempoolUtxosForAddress(senderAddress);
 
