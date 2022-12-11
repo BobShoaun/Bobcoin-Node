@@ -2,12 +2,10 @@ import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import {
   createOutput,
-  createInput,
   calculateBlockReward,
   createTransaction,
   calculateTransactionHash,
   calculateHashTarget,
-  bigIntToHex64,
   hexToBigInt,
   calculateMerkleRoot,
   calculateBlockHash,
@@ -17,125 +15,171 @@ import params from "../params";
 import {
   nodeDonationPercent,
   nodeDonationAddress,
-  poolDifficultyPercent,
-  poolMinDifficulty,
   poolAddress,
-  poolOperatorFeePercent,
+  poolTargetShareTime,
+  poolShareDifficultyRecalcFreq,
 } from "../config";
 import { calculateDifficulty, getHeadBlock } from "../controllers/blockchain.controller";
 import { calculateTransactionFees } from "../controllers/transaction.controller";
 import { getValidMempool } from "../controllers/mempool.controller";
 import { mapVCode, VCODE } from "../helpers/validation-codes";
+import { round4, clamp } from "../helpers/general.helper";
+import { addBlock } from "../middlewares/block.middleware";
+import { PoolMiners, PoolRewards } from "../models";
 
 /**
  * this pool will adopt the PPLNS mechanism
  * https://www.nicehash.com/blog/post/how-mining-pools-distribute-rewards-pps-vs-fpps-vs-pplns
  */
+const calculateUnclampedHashTarget = (params, block) => {
+  // divide by multiplying divisor by 1000 then dividing results by 1000
+  const initHashTarget = hexToBigInt(params.initHashTarg);
+  const hashTarget = (initHashTarget / BigInt(Math.trunc(block.difficulty * 1000))) * 1000n;
+  return hashTarget;
+};
 
 const router = Router();
 
-const calculatePoolInfo = async () => {
-  const previousBlock = await getHeadBlock();
-  const difficulty = await calculateDifficulty(previousBlock);
-  const mempool = await getValidMempool();
-
-  const selectedTxs = mempool.length ? [mempool[0]] : [];
-  const fees = await calculateTransactionFees(selectedTxs);
-
-  const blockReward = calculateBlockReward(params, previousBlock.height + 1) + fees;
-  const donationAmount = Math.ceil(blockReward * nodeDonationPercent);
-  const coinbaseAmount = blockReward - donationAmount;
-
-  // coinbase transaction
-  const coinbaseOutput = createOutput(poolAddress, coinbaseAmount);
-  const donationOutput = createOutput(nodeDonationAddress, donationAmount);
-  const coinbase = createTransaction(params, [], [coinbaseOutput, donationOutput]);
-  coinbase.hash = calculateTransactionHash(coinbase);
-
-  // reward distribution transaction (no fees required)
-
-  const poolTransactions = [coinbase, ...selectedTxs];
-
-  const poolCandidateBlockHeader = {
-    height: previousBlock.height + 1,
-    previousHash: previousBlock.hash,
-    merkleRoot: calculateMerkleRoot(poolTransactions.map(tx => tx.hash)),
-    timestamp: Date.now(),
-    version: params.version,
-    difficulty,
-    nonce: 0,
-    hash: "",
-  };
-
-  const poolDifficulty = Math.max(difficulty * poolDifficultyPercent, poolMinDifficulty);
-  return { poolCandidateBlockHeader, poolTransactions, poolDifficulty };
-};
-
-router.get("/pool/init", async (req, res) => {
-  const { poolCandidateBlockHeader, poolTransactions, poolDifficulty } = await calculatePoolInfo();
-  req.app.locals.poolCandidateBlockHeader = poolCandidateBlockHeader;
-  req.app.locals.poolTransactions = poolTransactions;
-  req.app.locals.poolDifficulty = poolDifficulty;
-  req.app.locals.minerShares = new Map();
-
-  res.send({ poolCandidateBlockHeader, poolTransactions, poolDifficulty });
+router.get("/pool/info", (_, res) => {
+  res.send({ poolAddress, poolTargetShareTime });
 });
 
 router.get(
-  "/pool/candidate-block",
+  "/pool/candidate-block/:address",
   //   rateLimit({
   //     windowMs: 60 * 1000, // 1 minute
   //     max: 2,
   //     standardHeaders: true,
   //     legacyHeaders: false,
-  //   }),
+  //   }), // must be rate limited to at least target share time
   async (req, res) => {
-    const { poolCandidateBlockHeader } = req.app.locals;
-    if (!poolCandidateBlockHeader)
-      return res.status(500).send("Pool candidate block not generated.");
+    const { address: minerAddress } = req.params;
 
-    const poolDifficulty = req.app.locals.poolDifficulty;
-    res.send({ poolCandidateBlockHeader, poolDifficulty });
+    const previousBlock = await getHeadBlock();
+    const difficulty = await calculateDifficulty(previousBlock);
+    const mempool = await getValidMempool();
+
+    const selectedTxs = mempool.length ? [mempool[0]] : [];
+    const fees = await calculateTransactionFees(selectedTxs);
+
+    const blockReward = calculateBlockReward(params, previousBlock.height + 1) + fees;
+    const donationAmount = Math.ceil(blockReward * nodeDonationPercent);
+    const coinbaseAmount = blockReward - donationAmount;
+
+    // coinbase transaction
+    const coinbaseOutput = createOutput(poolAddress, coinbaseAmount);
+    const donationOutput = createOutput(nodeDonationAddress, donationAmount);
+    const coinbase = createTransaction(params, [], [coinbaseOutput, donationOutput], `Mined by ${minerAddress}`);
+    coinbase.hash = calculateTransactionHash(coinbase);
+
+    const transactions = [coinbase, ...selectedTxs];
+
+    const candidateBlock = {
+      height: previousBlock.height + 1,
+      previousHash: previousBlock.hash,
+      merkleRoot: calculateMerkleRoot(transactions.map(tx => tx.hash)),
+      timestamp: Date.now(),
+      version: params.version,
+      difficulty,
+      nonce: 0,
+      transactions,
+    };
+
+    const poolMiner = await PoolMiners.findOne({ address: minerAddress });
+    if (poolMiner) {
+      poolMiner.candidateBlock = candidateBlock;
+      poolMiner.previousNonce = -1;
+      await poolMiner.save();
+      return res.status(201).send({ candidateBlock, shareDifficulty: poolMiner.shareDifficulty });
+    }
+
+    const shareDifficulty = round4(params.initBlkDiff * (poolTargetShareTime / params.targBlkTime));
+    await PoolMiners.create({
+      address: minerAddress,
+      candidateBlock,
+      shareDifficulty,
+    });
+    return res.status(201).send({ candidateBlock, shareDifficulty });
   }
 );
 
-router.post("/pool/block", async (req, res) => {
-  const { nonce, hash, miner } = req.body;
-  if (!hash) return res.sendStatus(400);
-  if (nonce == null) return res.sendStatus(400);
+router.post(
+  "/pool/block",
+  async (req: any, res, next) => {
+    const { nonce, hash, miner } = req.body;
+    if (!hash) return res.sendStatus(400);
+    if (nonce == null) return res.sendStatus(400);
+    if (!miner) return res.sendStatus(400);
 
-  const { poolCandidateBlockHeader, poolDifficulty } = req.app.locals;
-  if (!poolCandidateBlockHeader) return res.status(500).send("Pool candidate block not generated.");
+    const poolMiner = await PoolMiners.findOne({ address: miner });
+    if (!poolMiner) return res.status(404).send("Pool miner not found.");
 
-  console.log(poolCandidateBlockHeader);
+    const { candidateBlock, shareDifficulty, previousNonce, numShareSubmissions, prevShareDiffRecalcTime } =
+      poolMiner.toObject();
 
-  // validate pool block for share
-  const poolBlock = { ...poolCandidateBlockHeader, hash, nonce };
-  if (hash !== calculateBlockHash(poolBlock)) return res.status(400).send(mapVCode(VCODE.BK05)); // invalid block hash
+    // check not reusing nonce, miners MUST increase nonce when mining
+    if (nonce <= previousNonce) return res.status(406).send("Reusing nonce.");
 
-  const poolHashTarget = calculateHashTarget(params, { difficulty: poolDifficulty });
-  const hashBigInt = hexToBigInt(hash);
-  if (hashBigInt > poolHashTarget)
-    return res.status(400).send(mapVCode(VCODE.BK07, poolHashTarget)); // hash not within pool target
+    // validate pool block for share
+    const block = { ...candidateBlock, hash, nonce };
+    if (hash !== calculateBlockHash(block)) return res.status(400).send(mapVCode(VCODE.BK05)); // invalid block hash
 
-  // grant shares based on difficulty of hash
-  const sharesGranted = 1;
-  if (miner) {
-    const numShares = req.app.locals.minerShares.get(miner);
+    const shareTargetHash = calculateUnclampedHashTarget(params, { difficulty: shareDifficulty });
+    const actualHash = hexToBigInt(hash);
+    if (actualHash > shareTargetHash) return res.status(400).send(mapVCode(VCODE.BK07, shareTargetHash)); // hash not within share target
 
-    // TODO: validate address?
-    req.app.locals.minerShares.set(miner, numShares ? numShares + sharesGranted : sharesGranted);
+    // grant shares based on share difficulty
+    const minShareDifficulty = params.initBlkDiff * (poolTargetShareTime / params.targBlkTime);
+    const numSharesGranted = Math.trunc(shareDifficulty / block.difficulty / minShareDifficulty);
+
+    // share difficulty recalc
+    if (numShareSubmissions % poolShareDifficultyRecalcFreq === 0) {
+      console.log("prev share diff:", shareDifficulty);
+      const currTime = Date.now();
+      const timeDifference = (currTime - prevShareDiffRecalcTime) / 1000; // divide to get seconds
+      const targetTimeDifference = poolShareDifficultyRecalcFreq * poolTargetShareTime;
+      const correctionFactor = targetTimeDifference / timeDifference;
+
+      const minShareDifficulty = params.initBlkDiff * (poolTargetShareTime / params.targBlkTime);
+      console.log("minShareDifficulty", minShareDifficulty);
+      console.log("block.difficulty", block.difficulty);
+      poolMiner.shareDifficulty = round4(
+        clamp(shareDifficulty * correctionFactor, minShareDifficulty, block.difficulty)
+      );
+      poolMiner.prevShareDiffRecalcTime = currTime;
+      console.log("new share diff:", poolMiner.shareDifficulty);
+    }
+
+    poolMiner.numShares += numSharesGranted;
+    poolMiner.previousNonce = nonce;
+    poolMiner.numShareSubmissions++;
+    await poolMiner.save();
+
+    // check if it fulfills blockchain PoW
+    const targetHash = calculateHashTarget(params, candidateBlock);
+    if (actualHash > targetHash)
+      return res.status(201).send({ numSharesGranted, totalShares: poolMiner.numShares, isValid: false }); // not good enough for blockchain PoW
+
+    // we got a winning block!
+    console.log("adding block to blockchain!");
+    req.numSharesGranted = numSharesGranted;
+    req.totalShares = poolMiner.numShares;
+    req.block = block;
+    next();
+  },
+  addBlock,
+  async (req: any, res) => {
+    // TODO: make reward distribution transaction
+    const poolMiners = await PoolMiners.find({ numShares: { $gt: 0 } }, { _id: false });
+    await PoolRewards.create({
+      blockHash: req.block.hash,
+      blockHeight: req.block.height,
+      minerShares: poolMiners,
+    });
+    await PoolMiners.updateMany({ numShares: { $gt: 0 } }, { $set: { numShares: 0 } });
+
+    res.status(201).send({ numSharesGranted: req.numSharesGranted, totalShares: req.totalShares, isValid: true });
   }
-
-  // check if it fulfills blockchain PoW
-  const hashTarget = calculateHashTarget(params, poolCandidateBlockHeader);
-  if (hashBigInt > hashTarget)
-    return res.status(201).send({ validation: mapVCode(VCODE.VALID), sharesGranted }); // not good enough for blockchain PoW
-
-  // we got a winning block!
-  console.log("adding block to blockchain!");
-
-  res.status(201).send({ validation: mapVCode(VCODE.VALID), sharesGranted });
-});
+);
 
 export default router;

@@ -58,14 +58,9 @@ router.post("/faucet/request", async (req, res) => {
     faucetFeeAmount
   );
 
-  try {
-    const validation = await addTransaction(transaction);
+  const validation = await addTransaction(transaction);
 
-    if (validation.code !== VCODE.VALID)
-      return res.status(410).send("Insufficient funds in faucet"); // most likely not enough funds in faucet
-  } catch (e) {
-    return res.status(400).send(e);
-  }
+  if (validation.code !== VCODE.VALID) return res.status(410).send("Insufficient funds in faucet"); // most likely not enough funds in faucet
 
   faucetEntry.count++;
   await faucetEntry.save();

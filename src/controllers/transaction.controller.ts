@@ -19,8 +19,7 @@ import { getMempoolUtxosForAddress } from "./utxo.controller";
 
 export const addTransaction = async (transaction: Transaction) => {
   const validation = await validateTransaction(transaction);
-  if (validation.code !== VCODE.VALID) throw validation;
-
+  if (validation.code !== VCODE.VALID) return validation;
   await Mempool.create(transaction);
   return validation;
 };
@@ -31,6 +30,7 @@ export const validateTransaction = async (transaction: Transaction) => {
   if (!transaction.outputs.length) return mapVCode(VCODE.TX01);
   if (!transaction.timestamp) return mapVCode(VCODE.TX02);
   if (!transaction.version) return mapVCode(VCODE.TX03);
+  if (transaction.message?.length > params.txMsgMaxLen) return mapVCode(VCODE.TX12); // message too long
   if (transaction.hash !== calculateTransactionHash(transaction)) return mapVCode(VCODE.TX04); // hash is invalid
 
   const preImage = calculateTransactionPreImage(transaction);

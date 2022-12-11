@@ -23,13 +23,14 @@ const testnetParams = {
   name: "Bobcoin",
   symbol: "XBC",
   coin: 100_000_000, // amounts are stored as the smallest unit, this is how many of the smallest unit that amounts to 1 coin.
-  version: "0.3.0",
+  version: "0.4.0",
   addressPre: "06",
   checksumLen: 4,
   initBlkReward: 4096 * 100_000_000, // in coins
   blkRewardHalflife: 200, // in block height
   initBlkDiff: 1,
   initHashTarg: "0000afffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", // max target
+  // initHashTarg: "000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", // max target
   targBlkTime: 5 * 60, // 5 minutes in seconds
   diffRecalcHeight: 50, // in block height
   minDiffCorrFact: 1 / 4,
@@ -38,6 +39,7 @@ const testnetParams = {
   hardCap: 819_200_000 * 100_000_000, // upper bound to amt of coins in circulation
   derivPurpose: 44, // bip 44
   derivCoinType: 1, // coin type for all test nets as of bip44 spec
+  txMsgMaxLen: 128,
   genesisBlock: {
     height: 0,
     hash: "000099f65f482c57e0ef074f40c42483875dc71080ec11eb6fb1baa5ed8e30f2",
@@ -68,7 +70,7 @@ const mainnetParams = {
   name: "Bobcoin",
   symbol: "XBC",
   coin: 100_000_000, // amounts are stored as the smallest unit, this is how many of the smallest unit that amounts to 1 coin.
-  version: "1.3.0",
+  version: "1.4.0",
   addressPre: "06",
   checksumLen: 4,
   initBlkReward: 512 * 100_000_000, // in coins
@@ -83,6 +85,7 @@ const mainnetParams = {
   hardCap: 10_240_000 * 100_000_000, // upper bound to amt of coins in circulation
   derivPurpose: 44, // bip 44
   derivCoinType: 8888, // coin type for mainnet bobcoin
+  txMsgMaxLen: 128,
   genesisBlock: {
     height: 0,
     hash: "0000000feec941f61402e216aad021939642cfee2e97e6fc45c7a692dd3a759f",

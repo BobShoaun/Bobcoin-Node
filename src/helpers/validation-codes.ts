@@ -20,6 +20,7 @@ export const VCODE = {
   TX09: 109,
   TX10: 110,
   TX11: 111,
+  TX12: 112,
 
   CB00: 200,
   CB01: 201,
@@ -85,6 +86,8 @@ export const mapVCode = (code, ...args) => {
       return { code, msg: `input is ${args[0]} and output is ${args[1]}` };
     case VCODE.TX11:
       return { code, msg: `input ${args[0]}:${args[1]} already spent.` };
+    case VCODE.TX12:
+      return { code, msg: `message too long` };
 
     // case VCODE.TX07:
     //   return { code, msg: "more than one sender" };

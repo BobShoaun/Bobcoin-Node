@@ -16,7 +16,7 @@ import { validateCandidateBlock } from "../controllers/validation.controller";
 import { Block, Transaction } from "../models/types";
 import { mapVCode, VCODE } from "../helpers/validation-codes";
 import { calculateTransactionFees } from "../controllers/transaction.controller";
-import { nodeDonationPercent, nodeDonationAddress } from "../config";
+import { nodeDonationPercent, nodeDonationAddress, isProduction } from "../config";
 
 const router = Router();
 
@@ -29,36 +29,13 @@ router.get("/mine/info", async (req, res) => {
 });
 
 router.post(
-  "/mine/candidate-block/info",
-  rateLimit({
-    windowMs: 60 * 1000, // 1 minute
-    max: 2,
-    standardHeaders: true,
-    legacyHeaders: false,
-  }),
-  async (req, res) => {
-    // return res.sendStatus(501);
-
-    const transactions = req.body.transactions ?? [];
-    const { parentBlockHash } = req.body;
-
-    const fees = await calculateTransactionFees(transactions);
-
-    const previousBlock =
-      (await BlocksInfo.findOne({ hash: parentBlockHash }).lean()) ?? (await getHeadBlock());
-
-    const difficulty = await calculateDifficulty(previousBlock);
-    res.send({ previousBlock, difficulty, fees });
-  }
-);
-
-router.post(
   "/mine/candidate-block",
   rateLimit({
     windowMs: 60 * 1000, // 1 minute
     max: 2,
     standardHeaders: true,
     legacyHeaders: false,
+    skip: () => !isProduction,
   }),
   async (req, res) => {
     const { previousBlockHash, miner } = req.body;
@@ -83,12 +60,7 @@ router.post(
     coinbase.hash = calculateTransactionHash(coinbase);
 
     const transactions = [coinbase, ..._transactions];
-    const candidateBlock = createBlock(
-      params,
-      previousBlock,
-      await calculateDifficulty(previousBlock),
-      transactions
-    );
+    const candidateBlock = createBlock(params, previousBlock, await calculateDifficulty(previousBlock), transactions);
 
     // const validation = await validateCandidateBlock(block);
     const validation = mapVCode(VCODE.VALID); // FIXME: temporary disable candidate block validation

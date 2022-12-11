@@ -22,7 +22,7 @@ export const validateCandidateBlock = async (block: Block) => {
   if (await Blocks.exists({ hash: block.hash })) return mapVCode(VCODE.BC04); // already in blockchain
   const previousBlock = await Blocks.findOne({ hash: block.previousHash });
   if (!previousBlock) return mapVCode(VCODE.BC01); // prev block not found, TODO: this is not really an error, should prompt node to search for previous block first.
-  if (block.timestamp < previousBlock.timestamp) return mapVCode(VCODE.BC02);
+  if (block.timestamp <= previousBlock.timestamp) return mapVCode(VCODE.BC02);
   if (block.height !== previousBlock.height + 1) return mapVCode(VCODE.BC05); // height invalid
 
   if (!block.timestamp) return mapVCode(VCODE.BK01);
@@ -44,6 +44,7 @@ export const validateCandidateBlock = async (block: Block) => {
     if (!transaction.outputs.length) return mapVCode(VCODE.TX01);
     if (!transaction.timestamp) return mapVCode(VCODE.TX02);
     if (!transaction.version) return mapVCode(VCODE.TX03);
+    if (transaction.message?.length > params.txMsgMaxLen) return mapVCode(VCODE.TX12); // message too long
     if (transaction.hash !== calculateTransactionHash(transaction)) return mapVCode(VCODE.TX04); // hash is invalid
 
     const preImage = calculateTransactionPreImage(transaction);
@@ -122,6 +123,7 @@ export const validateCandidateBlock = async (block: Block) => {
   if (!coinbaseTx.version) return mapVCode(VCODE.CB01);
   if (coinbaseTx.inputs.length) return mapVCode(VCODE.CB02); // coinbase must not have inputs
   if (!coinbaseTx.outputs.length) return mapVCode(VCODE.CB03); // no outputs
+  if (coinbaseTx.message?.length > params.txMsgMaxLen) return mapVCode(VCODE.TX12); // message too long
   if (coinbaseTx.hash !== calculateTransactionHash(coinbaseTx)) return mapVCode(VCODE.CB04); // hash is invalid
 
   let coinbaseAmt = 0;
@@ -180,7 +182,7 @@ export const validateBlockchain = (blocks: Block[]) => {
       if (!block.previousHash) return mapVCode(VCODE.BK00);
       const prevBlock = blocksPerHeight[block.height - 1].find(b => b.hash === block.previousHash);
       if (!prevBlock) return mapVCode(VCODE.BC01); // prev block not found due to invalid height or invalid previousHash
-      if (block.timestamp < prevBlock.timestamp) return mapVCode(VCODE.BC02);
+      if (block.timestamp <= prevBlock.timestamp) return mapVCode(VCODE.BC02);
     }
 
     if (!block.timestamp) return mapVCode(VCODE.BK01);
@@ -212,6 +214,7 @@ export const validateBlockchain = (blocks: Block[]) => {
     if (!coinbaseTx.version) return mapVCode(VCODE.CB01);
     if (coinbaseTx.inputs.length) return mapVCode(VCODE.CB02); // coinbase must not have inputs
     if (!coinbaseTx.outputs.length) return mapVCode(VCODE.CB03); // no outputs
+    if (coinbaseTx.message?.length > params.txMsgMaxLen) return mapVCode(VCODE.TX12); // message too long
     if (coinbaseTx.hash !== calculateTransactionHash(coinbaseTx)) return mapVCode(VCODE.CB04); // hash is invalid
 
     for (let i = 0; i < coinbaseTx.outputs.length; i++) {
@@ -238,6 +241,7 @@ export const validateBlockchain = (blocks: Block[]) => {
       if (!transaction.outputs.length) return mapVCode(VCODE.TX01);
       if (!transaction.timestamp) return mapVCode(VCODE.TX02);
       if (!transaction.version) return mapVCode(VCODE.TX03);
+      if (transaction.message?.length > params.txMsgMaxLen) return mapVCode(VCODE.TX12); // message too long
       if (transaction.hash !== calculateTransactionHash(transaction)) return mapVCode(VCODE.TX04); // hash is invalid
 
       const preImage = calculateTransactionPreImage(transaction);

@@ -1,10 +1,12 @@
 import { Schema } from "mongoose";
+import params from "../params";
 
 const transactionInfoSchema = new Schema(
   {
     hash: { type: String, required: true },
     timestamp: { type: Number, required: true },
     version: { type: String, required: true },
+    message: { type: String, maxLength: params.txMsgMaxLen },
     inputs: [
       {
         txHash: { type: String, required: true },

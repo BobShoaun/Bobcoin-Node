@@ -3,6 +3,7 @@ import { BlocksInfo, Mempool, Utxos } from "../models";
 import { addTransaction } from "../controllers/transaction.controller";
 import { TransactionInfo } from "../models/types";
 import { getValidMempool } from "../controllers/mempool.controller";
+import { VCODE } from "../helpers/validation-codes";
 
 const router = Router();
 
@@ -37,28 +38,30 @@ router.get("/transaction/:hash", async (req, res) => {
   const { block } = req.query;
 
   // check blocks first
-  const transactions = await BlocksInfo.aggregate([
-    { $match: block ? { hash: block } : { valid: true } },
-    { $unwind: "$transactions" },
-    {
-      $project: {
-        _id: 0,
-        block: {
-          height: "$height",
-          hash: "$hash",
-          valid: "$valid",
+  let transaction = (
+    await BlocksInfo.aggregate([
+      { $match: block ? { hash: block } : { valid: true } },
+      { $unwind: "$transactions" },
+      {
+        $project: {
+          _id: 0,
+          block: {
+            height: "$height",
+            hash: "$hash",
+            valid: "$valid",
+          },
+          transactions: 1,
         },
-        transactions: 1,
       },
-    },
-    { $replaceRoot: { newRoot: { $mergeObjects: ["$transactions", "$$ROOT"] } } },
-    { $project: { transactions: 0 } },
-    { $match: { hash } },
-  ]);
-  if (transactions.length) return res.send(transactions[0]);
+      { $replaceRoot: { newRoot: { $mergeObjects: ["$transactions", "$$ROOT"] } } },
+      { $project: { transactions: 0 } },
+      { $match: { hash } },
+    ])
+  )?.[0] as any;
+  if (transaction) return res.send(transaction);
 
   // check mempool
-  const transaction = (await Mempool.findOne({ hash }, { _id: 0 }).lean()) as TransactionInfo;
+  transaction = (await Mempool.findOne({ hash }, { _id: 0 }).lean()) as TransactionInfo;
 
   if (transaction) {
     for (const input of transaction.inputs) {
@@ -86,18 +89,15 @@ router.post("/transaction", async (req, res) => {
   const transaction = req.body;
   if (!transaction) return res.sendStatus(400);
 
-  try {
-    const validation = await addTransaction(transaction);
+  const validation = await addTransaction(transaction);
+  if (validation.code !== VCODE.VALID) return res.status(400).send(validation);
 
-    req.app.locals.io.emit("transaction", {
-      mempool: await getValidMempool(),
-    });
+  req.app.locals.io.emit("transaction", {
+    mempool: await getValidMempool(),
+  });
 
-    //TODO: inform other nodes of new transaction
-    res.status(201).send(validation);
-  } catch (e) {
-    return res.status(400).send(e);
-  }
+  //TODO: inform other nodes of new transaction
+  res.status(201).send(validation);
 });
 
 export default router;

@@ -7,8 +7,9 @@ import { Server } from "socket.io";
 import io from "socket.io-client";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
+import queue from "express-queue";
 
-import { network, port, whitelistedNodeUrls, canRecalcCache } from "./config";
+import { network, port, whitelistedNodeUrls, canRecalcCache, isProduction, blockQueueLimit } from "./config";
 import blockRouter from "./routes/block.route";
 import transactionRouter from "./routes/transaction.route";
 import utxoRouter from "./routes/utxo.route";
@@ -41,11 +42,16 @@ app.use(cors());
 app.enable("trust proxy");
 app.use(morgan("combined"));
 
+app.locals.blockQueue = queue({
+  activeLimit: 1,
+  queuedLimit: blockQueueLimit,
+});
 const apiLimiter = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes
   max: 300,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => !isProduction,
 });
 app.use(apiLimiter);
 app.use(checkDatabaseConn);

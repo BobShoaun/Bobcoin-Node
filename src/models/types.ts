@@ -2,6 +2,7 @@ export interface Transaction {
   hash: string;
   timestamp: number;
   version: string;
+  message: string;
   inputs: [
     {
       txHash: string;
@@ -18,16 +19,19 @@ export interface Transaction {
   ];
 }
 
-export interface Block {
+export interface CandidateBlock {
   height: number;
-  hash: string;
   previousHash: string;
   timestamp: number;
   version: string;
   difficulty: number;
-  nonce: number;
   merkleRoot: string;
   transactions: Transaction[];
+}
+
+export interface Block extends CandidateBlock {
+  hash: string;
+  nonce: number;
 }
 
 export interface TransactionInfo extends Transaction {
@@ -67,4 +71,20 @@ export interface FaucetEntry {
   count: number;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface PoolMiner {
+  address: string;
+  candidateBlock: CandidateBlock;
+  shareDifficulty: number;
+  numShares: number;
+  previousNonce: number;
+  numShareSubmissions: number;
+  prevShareDiffRecalcTime: number;
+}
+
+export interface PoolReward {
+  blockHash: string;
+  blockHeight: number;
+  minerShares: [{ address: string; numShares: number }];
 }

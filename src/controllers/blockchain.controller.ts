@@ -1,6 +1,7 @@
 import { Blocks, BlocksInfo } from "../models";
 import { Block } from "../models/types";
 import params from "../params";
+import { round4, clamp } from "../helpers/general.helper";
 
 export const getHeadBlock = async () =>
   (await BlocksInfo.find({ valid: true }, "-_id").lean().sort({ height: -1 }).limit(1))[0];
@@ -35,14 +36,6 @@ export const calculateDifficulty = async ({ height: blockHeight, hash: blockHash
 
   const timeDiff = (currRecalcBlock.timestamp - prevRecalcBlock.timestamp) / 1000; // divide to get seconds
   const targetTimeDiff = params.diffRecalcHeight * params.targBlkTime; // in seconds
-  let correctionFactor = targetTimeDiff / timeDiff;
-  correctionFactor = Math.min(correctionFactor, params.maxDiffCorrFact); // clamp correctionfactor
-  correctionFactor = Math.max(correctionFactor, params.minDiffCorrFact);
-  return (
-    Math.round(
-      (Math.max(currRecalcBlock.difficulty * correctionFactor, params.initBlkDiff) +
-        Number.EPSILON) *
-        10000
-    ) / 10000
-  ); // new difficulty, max 4 decimal places
+  const correctionFactor = clamp(targetTimeDiff / timeDiff, params.minDiffCorrFact, params.maxDiffCorrFact); // clamp correctionfactor
+  return round4(Math.max(currRecalcBlock.difficulty * correctionFactor, params.initBlkDiff)); // new difficulty, max 4 decimal places
 };

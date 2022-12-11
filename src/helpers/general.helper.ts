@@ -51,9 +51,7 @@ export const recalculateCache = async () => {
     blocksPerHeight[block.height] = [block];
   }
 
-  const branches: [{ block: BlockInfo; utxos: Utxo[] }] = [
-    { block: blocksPerHeight[0][0], utxos: [] },
-  ];
+  const branches: [{ block: BlockInfo; utxos: Utxo[] }] = [{ block: blocksPerHeight[0][0], utxos: [] }];
   let headBlockUtxos = null;
 
   while (branches.length) {
@@ -62,9 +60,7 @@ export const recalculateCache = async () => {
     for (const transaction of block.transactions) {
       // remove inputs from utxos
       for (const input of transaction.inputs) {
-        const utxoIndex = utxos.findIndex(
-          utxo => utxo.txHash === input.txHash && utxo.outIndex === input.outIndex
-        );
+        const utxoIndex = utxos.findIndex(utxo => utxo.txHash === input.txHash && utxo.outIndex === input.outIndex);
         if (utxoIndex === -1) {
           console.error("FATAL: utxo does not exist on transaction!");
           process.exit();
@@ -100,8 +96,7 @@ export const recalculateCache = async () => {
       }
     }
 
-    const nextBlocks =
-      blocksPerHeight[block.height + 1]?.filter(b => b.previousHash === block.hash) ?? [];
+    const nextBlocks = blocksPerHeight[block.height + 1]?.filter(b => b.previousHash === block.hash) ?? [];
 
     for (const nextBlock of nextBlocks) branches.push({ block: nextBlock, utxos: [...utxos] });
 
@@ -131,3 +126,7 @@ export const recalculateCache = async () => {
 
   console.log("\nCache calculation completed and stored in database.");
 };
+
+export const round4 = num => Math.round((num + Number.EPSILON) * 10000) / 10000;
+
+export const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
