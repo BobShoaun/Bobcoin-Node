@@ -26,6 +26,7 @@ import { mapVCode, VCODE } from "../helpers/validation-codes";
 import { round4, clamp } from "../helpers/general.helper";
 import { addBlock } from "../middlewares/block.middleware";
 import { PoolMiners, PoolRewards } from "../models";
+import { isAddressValid } from "blockcrypto";
 
 /**
  * this pool will adopt the PPLNS mechanism
@@ -54,6 +55,7 @@ router.get(
   //   }), // must be rate limited to at least target share time
   async (req, res) => {
     const { address: minerAddress } = req.params;
+    if (!isAddressValid(minerAddress)) return res.status(400).send("Miner address is invalid.");
 
     const previousBlock = await getHeadBlock();
     const difficulty = await calculateDifficulty(previousBlock);

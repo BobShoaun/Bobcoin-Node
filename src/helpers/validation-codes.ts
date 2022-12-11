@@ -130,5 +130,6 @@ export const mapVCode = (code, ...args) => {
 
     default:
       console.log("ERROR, invalid code");
+      return { code, msg: "invalid code" };
   }
 };

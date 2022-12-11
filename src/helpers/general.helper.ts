@@ -1,5 +1,5 @@
 import { Blocks, BlocksInfo, Utxos } from "../models";
-import { BlockInfo, Utxo } from "../models/types";
+import { BlockInfo, Utxo, Block } from "../models/types";
 
 // TODO: optimize with async iterators (cant)
 export const recalculateCache = async () => {
@@ -42,7 +42,7 @@ export const recalculateCache = async () => {
 
   console.log("\nCalculating utxos and block information...");
 
-  const blocksPerHeight = []; // array of array
+  const blocksPerHeight: BlockInfo[][] = []; // array of array
   for (const block of blocks) {
     if (blocksPerHeight[block.height]) {
       blocksPerHeight[block.height].push(block);
@@ -51,11 +51,15 @@ export const recalculateCache = async () => {
     blocksPerHeight[block.height] = [block];
   }
 
-  const branches: [{ block: BlockInfo; utxos: Utxo[] }] = [{ block: blocksPerHeight[0][0], utxos: [] }];
-  let headBlockUtxos = null;
+  interface Branch {
+    block: BlockInfo;
+    utxos: Utxo[];
+  }
+  const branches: Branch[] = [{ block: blocksPerHeight[0][0], utxos: [] }];
+  let headBlockUtxos: Utxo[] = [];
 
   while (branches.length) {
-    const { block, utxos } = branches.shift();
+    const { block, utxos } = branches.shift() as Branch;
     // do stuff with branch.block and branch.utxos
     for (const transaction of block.transactions) {
       // remove inputs from utxos
@@ -75,7 +79,7 @@ export const recalculateCache = async () => {
         // record spenting tx hash in tx output only for valid chain
 
         for (let i = block.height; i >= 0; i--) {
-          const validBlock = blocksPerHeight[i].find(b => b.valid);
+          const validBlock = blocksPerHeight[i].find(b => b.valid) as BlockInfo;
           const tx = validBlock.transactions.find(tx => tx.hash === utxo.txHash);
           if (tx) {
             tx.outputs[utxo.outIndex].txHash = transaction.hash;
@@ -127,6 +131,6 @@ export const recalculateCache = async () => {
   console.log("\nCache calculation completed and stored in database.");
 };
 
-export const round4 = num => Math.round((num + Number.EPSILON) * 10000) / 10000;
+export const round4 = (num: number) => Math.round((num + Number.EPSILON) * 10000) / 10000;
 
-export const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
+export const clamp = (num: number, min: number, max: number) => Math.min(Math.max(num, min), max);

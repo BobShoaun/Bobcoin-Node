@@ -2,7 +2,7 @@ import { Blocks, BlocksInfo, Utxos, Mempool } from "../models";
 import { validateBlock } from "../controllers/validation.controller";
 import { VCODE } from "../helpers/validation-codes";
 import { getValidMempool } from "../controllers/mempool.controller";
-import { Block } from "../models/types";
+import { Block, Output, BlockInfo } from "../models/types";
 import { getHeadBlock } from "../controllers/blockchain.controller";
 import { distributeConfirmedPoolRewards } from "../controllers/pool.controller";
 
@@ -70,7 +70,7 @@ export const addBlock = [
         const transaction = blockInfo.transactions[i];
 
         for (const input of transaction.inputs) {
-          let utxo = null; // find utxo for information
+          let utxo: Output | null = null; // find utxo for information
 
           // check own block first
           for (const transaction of blockInfo.transactions.slice(0, i).reverse()) {
@@ -123,13 +123,14 @@ export const addBlock = [
     } else {
       // blockchain reorg required. fork happened
       console.log("\nBlockchain fork reorganization for block:", blockInfo.height, blockInfo.hash);
-      const fork = []; // starting from block after common ancestor to block before current new block (new head)
+      const fork: BlockInfo[] = []; // starting from block after common ancestor to block before current new block (new head)
 
       // find common ancestor
-      let commonBlock = null;
+      let commonBlock: BlockInfo | null = null;
       let currBlockHash = blockInfo.previousHash;
       while (currBlockHash) {
         const currBlock = await BlocksInfo.findOne({ hash: currBlockHash });
+        if (!currBlock) return res.status(500).send("currBlock not found!");
         if (currBlock.valid) {
           // block is in main chain, found common ancestor
           commonBlock = currBlock;
@@ -139,10 +140,13 @@ export const addBlock = [
         currBlockHash = currBlock.previousHash;
       }
 
+      if (!commonBlock) return res.status(500).send("common block is null!");
+
       // undo utxo history and return txs to mempool, starting from headBlock until common ancestor (valid block)
       currBlockHash = headBlock.hash;
       while (currBlockHash) {
         const currBlock = await BlocksInfo.findOne({ hash: currBlockHash });
+        if (!currBlock) return res.status(500).send("currBlock not found!");
 
         console.log("Undoing block:", currBlock.height, currBlock.hash);
 

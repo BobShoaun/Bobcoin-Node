@@ -14,7 +14,7 @@ import {
 
 import { Blocks } from "../models";
 import { mapVCode, VCODE } from "../helpers/validation-codes";
-import { Block, Utxo } from "../models/types";
+import { Block, Utxo, Output } from "../models/types";
 import { calculateDifficulty } from "./blockchain.controller";
 
 // validate without hash
@@ -28,8 +28,7 @@ export const validateCandidateBlock = async (block: Block) => {
   if (!block.timestamp) return mapVCode(VCODE.BK01);
   if (!block.version) return mapVCode(VCODE.BK02);
   if (!block.transactions.length) return mapVCode(VCODE.BK03); // must have at least 1 tx (coinbase)
-  if (block.merkleRoot !== calculateMerkleRoot(block.transactions.map(tx => tx.hash)))
-    return mapVCode(VCODE.BK06); // "invalid merkle root"
+  if (block.merkleRoot !== calculateMerkleRoot(block.transactions.map(tx => tx.hash))) return mapVCode(VCODE.BK06); // "invalid merkle root"
 
   const difficulty = await calculateDifficulty(previousBlock);
   if (block.difficulty !== difficulty) return mapVCode(VCODE.BK04, difficulty, block.difficulty); // invalid difficulty
@@ -51,15 +50,11 @@ export const validateCandidateBlock = async (block: Block) => {
 
     let txTotalInput = 0;
     for (const input of transaction.inputs) {
-      let utxo = null; // find utxo
+      let utxo: Output | null = null; // find utxo
 
       // check own block first
       for (const transaction of block.transactions.slice(0, i).reverse()) {
-        if (
-          transaction.inputs.some(
-            _input => _input.txHash === input.txHash && _input.outIndex === input.outIndex
-          )
-        )
+        if (transaction.inputs.some(_input => _input.txHash === input.txHash && _input.outIndex === input.outIndex))
           return mapVCode(VCODE.TX11, input.txHash, input.outIndex); // utxo is stxo (spent)
         if (input.txHash === transaction.hash) {
           utxo = transaction.outputs[input.outIndex];
@@ -70,19 +65,12 @@ export const validateCandidateBlock = async (block: Block) => {
       if (!utxo) {
         let prevBlockHash = block.previousHash;
         // @ts-ignore
-        outer: for await (const prevBlock of Blocks.find(
-          { height: { $lt: block.height } },
-          { _id: 0 }
-        )
+        outer: for await (const prevBlock of Blocks.find({ height: { $lt: block.height } }, { _id: 0 })
           .sort({ height: -1 })
           .lean() as Block[]) {
           if (prevBlockHash !== prevBlock.hash) continue; // wrong branch
           for (const transaction of [...prevBlock.transactions].reverse()) {
-            if (
-              transaction.inputs.some(
-                _input => _input.txHash === input.txHash && _input.outIndex === input.outIndex
-              )
-            )
+            if (transaction.inputs.some(_input => _input.txHash === input.txHash && _input.outIndex === input.outIndex))
               return mapVCode(VCODE.TX11, input.txHash, input.outIndex); // utxo is stxo (spent)
             if (input.txHash === transaction.hash) {
               utxo = transaction.outputs[input.outIndex];
@@ -95,10 +83,8 @@ export const validateCandidateBlock = async (block: Block) => {
 
       if (!utxo) return mapVCode(VCODE.TX05, input.txHash, input.outIndex); // utxo not found, got to genesis block
 
-      if (utxo.address !== getAddressFromPublicKey(params, input.publicKey))
-        return mapVCode(VCODE.TX06);
-      if (!isSignatureValid(input.signature, input.publicKey, preImage))
-        return mapVCode(VCODE.TX07); // signature not valid
+      if (utxo.address !== getAddressFromPublicKey(params, input.publicKey)) return mapVCode(VCODE.TX06);
+      if (!isSignatureValid(input.signature, input.publicKey, preImage)) return mapVCode(VCODE.TX07); // signature not valid
 
       txTotalInput += utxo.amount;
     }
@@ -135,8 +121,7 @@ export const validateCandidateBlock = async (block: Block) => {
 
   const fee = blkTotalInput - blkTotalOutput;
   const blockReward = calculateBlockReward(params, block.height);
-  if (coinbaseAmt !== fee + blockReward)
-    return mapVCode(VCODE.CB07, fee + blockReward, coinbaseAmt); // coinbase amt larger than allowed
+  if (coinbaseAmt !== fee + blockReward) return mapVCode(VCODE.CB07, fee + blockReward, coinbaseAmt); // coinbase amt larger than allowed
   // ---- end coinbase tx ----
 
   return mapVCode(VCODE.VALID); // valid!
@@ -169,13 +154,17 @@ export const validateBlockchain = (blocks: Block[]) => {
 
   let totalValidatedBlocks = 0;
 
-  const branches: [{ block: any; utxos: Utxo[]; difficulty: number }] = [
-    { block: blocksPerHeight[0][0], utxos: [], difficulty: params.initBlkDiff },
-  ];
+  interface Branch {
+    block: Block;
+    utxos: Utxo[];
+    difficulty: number;
+  }
+
+  const branches: Branch[] = [{ block: blocksPerHeight[0][0], utxos: [], difficulty: params.initBlkDiff }];
 
   while (branches.length) {
     totalValidatedBlocks++;
-    const { block, utxos, difficulty } = branches.shift();
+    const { block, utxos, difficulty } = branches.shift() as Branch;
 
     if (block.height > 0) {
       // not genesis block
@@ -194,12 +183,12 @@ export const validateBlockchain = (blocks: Block[]) => {
       return mapVCode(VCODE.BK04, difficulty, block.difficulty);
 
     if (block.version === "1.2.0" || block.version === "0.1.0")
-      block.difficulty = block.difficulty.toFixed(4); // account for error/bug when calculating hash with difficulty as string.
+      // @ts-ignore account for error/bug when calculating hash with difficulty as string.
+      block.difficulty = block.difficulty.toFixed(4);
 
     if (block.hash !== calculateBlockHash(block)) return mapVCode(VCODE.BK05); // "invalid block hash";
 
-    if (block.merkleRoot !== calculateMerkleRoot(block.transactions.map(tx => tx.hash)))
-      return mapVCode(VCODE.BK06); // "invalid merkle root"
+    if (block.merkleRoot !== calculateMerkleRoot(block.transactions.map(tx => tx.hash))) return mapVCode(VCODE.BK06); // "invalid merkle root"
 
     const hashTarget = calculateHashTarget(params, block);
     const blockHash = hexToBigInt(block.hash);
@@ -248,14 +237,10 @@ export const validateBlockchain = (blocks: Block[]) => {
 
       let txTotalInput = 0;
       for (const input of transaction.inputs) {
-        const utxoIdx = utxos.findIndex(
-          utxo => utxo.txHash === input.txHash && utxo.outIndex === input.outIndex
-        );
+        const utxoIdx = utxos.findIndex(utxo => utxo.txHash === input.txHash && utxo.outIndex === input.outIndex);
         if (utxoIdx < 0) return mapVCode(VCODE.TX05, input.txHash, input.outIndex); // utxo not found
-        if (utxos[utxoIdx].address !== getAddressFromPublicKey(params, input.publicKey))
-          return mapVCode(VCODE.TX06);
-        if (!isSignatureValid(input.signature, input.publicKey, preImage))
-          return mapVCode(VCODE.TX07); // signature not valid
+        if (utxos[utxoIdx].address !== getAddressFromPublicKey(params, input.publicKey)) return mapVCode(VCODE.TX06);
+        if (!isSignatureValid(input.signature, input.publicKey, preImage)) return mapVCode(VCODE.TX07); // signature not valid
 
         txTotalInput += utxos[utxoIdx].amount;
 
@@ -287,8 +272,7 @@ export const validateBlockchain = (blocks: Block[]) => {
       return mapVCode(VCODE.CB07, blockReward, blkTotalOutput - blkTotalInput); // coinbase amt larger than allowed, or invalid block reward amount
     // ---- end coinbase block reward ----
 
-    const nextBlocks =
-      blocksPerHeight[block.height + 1]?.filter(b => b.previousHash === block.hash) ?? [];
+    const nextBlocks = blocksPerHeight[block.height + 1]?.filter(b => b.previousHash === block.hash) ?? [];
 
     // ----- calculate difficulty -----
     const newDifficulty = (() => {
@@ -298,7 +282,7 @@ export const validateBlockchain = (blocks: Block[]) => {
         do {
           prevRecalcBlock = blocksPerHeight[prevRecalcBlock.height - 1].find(
             b => b.hash === prevRecalcBlock.previousHash
-          );
+          ) as Block;
         } while (prevRecalcBlock.height !== block.height - params.diffRecalcHeight);
 
         const timeDiff = (block.timestamp - prevRecalcBlock.timestamp) / 1000; // divide to get seconds
@@ -308,9 +292,7 @@ export const validateBlockchain = (blocks: Block[]) => {
         correctionFactor = Math.max(correctionFactor, params.minDiffCorrFact);
 
         return (
-          Math.round(
-            (Math.max(difficulty * correctionFactor, params.initBlkDiff) + Number.EPSILON) * 10000
-          ) / 10000
+          Math.round((Math.max(difficulty * correctionFactor, params.initBlkDiff) + Number.EPSILON) * 10000) / 10000
         ); // new difficulty, max 4 decimal places
       }
       return difficulty;

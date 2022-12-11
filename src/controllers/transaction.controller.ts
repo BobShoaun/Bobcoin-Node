@@ -14,7 +14,7 @@ import {
 } from "blockcrypto";
 import params from "../params";
 
-import { Transaction } from "../models/types";
+import { Transaction, Input, Utxo } from "../models/types";
 import { getMempoolUtxosForAddress } from "./utxo.controller";
 
 export const addTransaction = async (transaction: Transaction) => {
@@ -39,8 +39,7 @@ export const validateTransaction = async (transaction: Transaction) => {
   for (const input of transaction.inputs) {
     const utxo = await Utxos.findOne({ txHash: input.txHash, outIndex: input.outIndex });
     if (!utxo) return mapVCode(VCODE.TX05, input.txHash, input.outIndex);
-    if (utxo.address !== getAddressFromPublicKey(params, input.publicKey))
-      return mapVCode(VCODE.TX06);
+    if (utxo.address !== getAddressFromPublicKey(params, input.publicKey)) return mapVCode(VCODE.TX06);
     if (!isSignatureValid(input.signature, input.publicKey, preImage)) return mapVCode(VCODE.TX07); // signature not valid
     totalInput += utxo.amount;
   }
@@ -68,7 +67,7 @@ export const createSimpleTransaction = async (
 
   // pick utxos
   let inputAmount = 0;
-  const inputs = [];
+  const inputs: Input[] = [];
   for (const utxo of utxos) {
     inputAmount += utxo.amount;
     const input = createInput(utxo.txHash, utxo.outIndex, senderPublicKey);
@@ -97,18 +96,13 @@ export const calculateTransactionFees = async (transactions: Transaction[]) => {
   let totalInput = 0;
   let totalOutput = 0;
 
-  const newUtxos = [];
+  const newUtxos: Utxo[] = [];
   for (const transaction of transactions) {
     for (const input of transaction.inputs) {
-      let utxo = newUtxos.find(
-        utxo => utxo.txHash === input.txHash && utxo.outIndex === input.outIndex
-      );
+      let utxo = newUtxos.find(utxo => utxo.txHash === input.txHash && utxo.outIndex === input.outIndex);
       if (!utxo)
         // not in new utxos list
-        utxo = await Utxos.findOne(
-          { txHash: input.txHash, outIndex: input.outIndex },
-          { _id: 0 }
-        ).lean();
+        utxo = await Utxos.findOne({ txHash: input.txHash, outIndex: input.outIndex }, { _id: 0 }).lean();
       totalInput += utxo?.amount ?? 0; // utxo may be null, in that case it should fail when validating
     }
 

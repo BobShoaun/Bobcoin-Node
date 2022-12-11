@@ -34,23 +34,31 @@ export interface Block extends CandidateBlock {
   nonce: number;
 }
 
+export interface Input {
+  txHash: string;
+  outIndex: number;
+  publicKey: string;
+  signature: string;
+}
+
+export interface Output {
+  address: string;
+  amount: number;
+}
+
 export interface TransactionInfo extends Transaction {
   inputs: [
     {
-      txHash: string;
-      outIndex: number;
-      publicKey: string;
-      signature: string;
       address: string;
       amount: number;
-    }
+    } & Input
   ];
   outputs: [
     {
       address: string;
       amount: number;
-      txHash?: string;
-    }
+      txHash?: string | null;
+    } & Output
   ];
 }
 
@@ -80,6 +88,7 @@ export interface PoolMiner {
   numShares: number;
   previousNonce: number;
   numShareSubmissions: number;
+  // totalAcceptedShares: number;
   prevShareDiffRecalcTime: number;
 }
 
