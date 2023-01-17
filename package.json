@@ -16,9 +16,15 @@
     "prune:mainnet:alpha": "cross-env DOTENV_CONFIG_PATH=alpha.mainnet.env ts-node -r dotenv/config src/scripts/pruneBlockchain.ts",
     "prune:testnet:alpha": "cross-env DOTENV_CONFIG_PATH=alpha.testnet.env ts-node -r dotenv/config src/scripts/pruneBlockchain.ts",
     "mine": "ts-node src/scripts/mine.ts",
+    "fork-miner": "cross-env DOTENV_CONFIG_PATH=alpha.mainnet.env ts-node -r dotenv/config src/scripts/forkMiner.ts",
     "aws-deploy": "git pull && npm run build && pm2 restart 0",
     "delete": "ts-node src/scripts/deleteBlocks.ts",
     "profile": "npm run build && clinic doctor -- node dist/index.js"
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "src/scripts/*"
+    ]
   },
   "repository": {
     "type": "git",

@@ -62,8 +62,8 @@ router.post(
     const transactions = [coinbase, ..._transactions];
     const candidateBlock = createBlock(params, previousBlock, await calculateDifficulty(previousBlock), transactions);
 
-    // const validation = await validateCandidateBlock(block);
-    const validation = mapVCode(VCODE.VALID); // FIXME: temporary disable candidate block validation
+    const validation = await validateCandidateBlock(candidateBlock);
+    // const validation = mapVCode(VCODE.VALID); // FIXME: temporary disable candidate block validation
     res.send({ validation, candidateBlock });
   }
 );

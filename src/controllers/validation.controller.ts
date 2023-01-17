@@ -14,12 +14,11 @@ import {
 
 import { Blocks } from "../models";
 import { mapVCode, VCODE } from "../helpers/validation-codes";
-import { Block, Utxo, Output } from "../models/types";
+import { Block, Utxo, Output, CandidateBlock } from "../models/types";
 import { calculateDifficulty } from "./blockchain.controller";
 
 // validate without hash
-export const validateCandidateBlock = async (block: Block) => {
-  if (await Blocks.exists({ hash: block.hash })) return mapVCode(VCODE.BC04); // already in blockchain
+export const validateCandidateBlock = async (block: CandidateBlock) => {
   const previousBlock = await Blocks.findOne({ hash: block.previousHash });
   if (!previousBlock) return mapVCode(VCODE.BC01); // prev block not found, TODO: this is not really an error, should prompt node to search for previous block first.
   if (block.timestamp <= previousBlock.timestamp) return mapVCode(VCODE.BC02);
@@ -128,6 +127,7 @@ export const validateCandidateBlock = async (block: Block) => {
 };
 
 export const validateBlock = async (block: Block) => {
+  if (await Blocks.exists({ hash: block.hash })) return mapVCode(VCODE.BC04); // already in blockchain
   const result = await validateCandidateBlock(block);
 
   if (block.hash !== calculateBlockHash(block)) return mapVCode(VCODE.BK05); // "invalid block hash";

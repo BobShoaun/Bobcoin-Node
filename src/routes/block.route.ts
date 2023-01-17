@@ -8,6 +8,7 @@ import { Block, BlockInfo } from "../models/types";
 import { getHeadBlock } from "../controllers/blockchain.controller";
 import { distributeConfirmedPoolRewards } from "../controllers/pool.controller";
 import { addBlock } from "../middlewares/block.middleware";
+import { authorizeUser } from "../middlewares/authentication.middleware";
 
 const router = Router();
 
@@ -81,6 +82,7 @@ router.get("/block/:hash/raw", async (req, res) => {
 
 router.post(
   "/block",
+  authorizeUser,
   (req: any, _, next) => ((req.block = req.body), next()),
   addBlock,
   (req: any, res) => res.status(201).send({ validation: req.validation, blockInfo: req.blockInfo })

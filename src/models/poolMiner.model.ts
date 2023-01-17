@@ -24,7 +24,7 @@ const poolMinerSchema = new Schema(
     shareDifficulty: { type: Number, required: true },
     numShares: { type: Number, required: true, default: 0 },
     previousNonce: { type: Number, required: true, default: -1 },
-    numShareSubmissions: { type: Number, required: true, default: 0 },
+    totalAcceptedShares: { type: Number, required: true, default: 0 },
     prevShareDiffRecalcTime: { type: Number, required: true, default: 0 },
   },
   {

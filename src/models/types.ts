@@ -2,7 +2,7 @@ export interface Transaction {
   hash: string;
   timestamp: number;
   version: string;
-  message: string;
+  message?: string;
   inputs: [
     {
       txHash: string;
@@ -87,8 +87,7 @@ export interface PoolMiner {
   shareDifficulty: number;
   numShares: number;
   previousNonce: number;
-  numShareSubmissions: number;
-  // totalAcceptedShares: number;
+  totalAcceptedShares: number;
   prevShareDiffRecalcTime: number;
 }
 

@@ -6,7 +6,7 @@ import { Worker } from "worker_threads";
 const nodeUrl = "https://alpha.mainnet.bobcoin.cash";
 const miner = "8bobLqxCRPTSEhvZwQTeKnKz5429N26";
 
-const workers = [];
+const workers: Worker[] = [];
 const numWorkers = 2;
 
 const socketClient = io(nodeUrl);
@@ -22,7 +22,7 @@ socketClient.on("block", ({ headBlock, mempool }) => {
 
 const mine = async previousBlock => {
   while (workers.length) {
-    const worker = workers.pop();
+    const worker = workers.pop() as Worker;
     worker.terminate();
   }
 
@@ -56,6 +56,7 @@ const mine = async previousBlock => {
 
           if (validation.code !== 400) {
             console.error("Block is invalid", blockInfo);
+            process.exit();
           }
 
           break;
