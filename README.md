@@ -42,7 +42,7 @@ pm2 ecosystem
 module.exports = {
   apps : [{
     name: 'Bobcoin Testnet Alpha',
-    script: 'NODE_ENV=production npm start',
+    script: 'NODE_ENV=production npm start', // add --norecalc to skip cache recalculation
     watch: '.'
   }],
   deploy : {
@@ -75,6 +75,10 @@ pm2 status
 ## Maintainance
 
 Check disk storage: `df -h`
+
+Check pm2 log space: `du -h ~/.pm2/pm2.log`
+
+Delete pm2 logs: `pm2 flush`
 
 ## Configuring service (not needed with pm2)
 
