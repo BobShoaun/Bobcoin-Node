@@ -1,5 +1,6 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
+import queue from "express-queue";
 import {
   createOutput,
   calculateBlockReward,
@@ -127,6 +128,10 @@ router.get(
 
 router.post(
   "/pool/block",
+  queue({
+    activeLimit: 1,
+    queuedLimit: 30,
+  }),
   authorizeUser,
   rateLimit({
     windowMs: poolTargetShareTime * 1000,
