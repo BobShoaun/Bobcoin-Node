@@ -30,7 +30,6 @@ import { addBlock } from "../middlewares/block.middleware";
 import { Transaction } from "../models/types";
 import { PoolMiners, PoolRewards } from "../models";
 import { isAddressValid } from "blockcrypto";
-import { authorizeUser } from "../middlewares/authentication.middleware";
 
 /**
  * this pool will adopt the PPLNS mechanism
@@ -132,7 +131,6 @@ router.post(
     activeLimit: 1,
     queuedLimit: 30,
   }),
-  authorizeUser,
   rateLimit({
     windowMs: poolTargetShareTime * 1000,
     max: poolShareDifficultyRecalcFreq,

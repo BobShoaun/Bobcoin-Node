@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { Blocks, Mempool } from "../models";
+import { Blocks } from "../models";
 import { validateBlockchain } from "../controllers/validation.controller";
 import { VCODE } from "../helpers/validation-codes";
 import { Block } from "../models/types";

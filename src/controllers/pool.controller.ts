@@ -19,7 +19,6 @@ export const distributeConfirmedPoolRewards = async (req, res, next) => {
   for (const { blockHeight, blockHash, minerShares } of confirmedPoolRewards) {
     const blockInfo = await BlocksInfo.findOne({ hash: blockHash }, "-_id valid transactions").lean();
 
-    // console.log(blockInfo);
     if (!blockInfo?.valid) {
       // dump shares back into poolminers entry
       for (const { address, numShares } of minerShares)
@@ -52,7 +51,6 @@ export const distributeConfirmedPoolRewards = async (req, res, next) => {
     transaction.inputs.forEach(input => (input.signature = signature));
     transaction.hash = calculateTransactionHash(transaction);
 
-    // console.log(transaction);
     const validation = await addTransaction(transaction);
     if (validation.code !== VCODE.VALID) return res.status(500).send(validation);
   }
