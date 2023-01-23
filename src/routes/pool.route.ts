@@ -20,6 +20,7 @@ import {
   poolTargetShareTime,
   poolShareDifficultyRecalcFreq,
   isProduction,
+  canMine,
 } from "../config";
 import { calculateDifficulty, getHeadBlock } from "../controllers/blockchain.controller";
 import { calculateTransactionFees } from "../controllers/transaction.controller";
@@ -30,6 +31,7 @@ import { addBlock } from "../middlewares/block.middleware";
 import { Transaction } from "../models/types";
 import { PoolMiners, PoolRewards } from "../models";
 import { isAddressValid } from "blockcrypto";
+import { authorizeUser } from "../middlewares/authentication.middleware";
 
 /**
  * this pool will adopt the PPLNS mechanism
@@ -127,6 +129,7 @@ router.get(
 
 router.post(
   "/pool/block",
+  canMine ? (req, res, next) => next() : authorizeUser,
   queue({
     activeLimit: 1,
     queuedLimit: 30,
@@ -183,10 +186,10 @@ router.post(
       );
       poolMiner.prevShareDiffRecalcTime = currTime;
 
-      console.log("prev share diff:", shareDifficulty);
-      console.log("minShareDifficulty", minShareDifficulty);
-      console.log("block.difficulty", block.difficulty);
-      console.log("new share diff:", poolMiner.shareDifficulty);
+      // console.log("prev share diff:", shareDifficulty);
+      // console.log("minShareDifficulty", minShareDifficulty);
+      // console.log("block.difficulty", block.difficulty);
+      // console.log("new share diff:", poolMiner.shareDifficulty);
     }
 
     poolMiner.numShares += numSharesGranted;

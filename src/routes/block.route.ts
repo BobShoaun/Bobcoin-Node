@@ -3,6 +3,8 @@ import { Router, Request } from "express";
 import { Blocks, BlocksInfo } from "../models";
 import { getHeadBlock } from "../controllers/blockchain.controller";
 import { addBlock } from "../middlewares/block.middleware";
+import { authorizeUser } from "../middlewares/authentication.middleware";
+import { canMine } from "../config";
 
 const router = Router();
 
@@ -76,6 +78,7 @@ router.get("/block/:hash/raw", async (req, res) => {
 
 router.post(
   "/block",
+  canMine ? (req, res, next) => next() : authorizeUser,
   (req: any, _, next) => ((req.block = req.body), next()),
   addBlock,
   (req: any, res) => res.status(201).send({ validation: req.validation, blockInfo: req.blockInfo })
