@@ -15,7 +15,7 @@ import {
 import { Blocks } from "../models";
 import { mapVCode, VCODE } from "../helpers/validation-codes";
 import { Block, Utxo, Output, CandidateBlock } from "../models/types";
-import { calculateDifficulty } from "./blockchain.controller";
+import { calculateNextDifficulty } from "./blockchain.controller";
 
 // validate without hash
 export const validateCandidateBlock = async (block: CandidateBlock) => {
@@ -29,7 +29,7 @@ export const validateCandidateBlock = async (block: CandidateBlock) => {
   if (!block.transactions.length) return mapVCode(VCODE.BK03); // must have at least 1 tx (coinbase)
   if (block.merkleRoot !== calculateMerkleRoot(block.transactions.map(tx => tx.hash))) return mapVCode(VCODE.BK06); // "invalid merkle root"
 
-  const difficulty = await calculateDifficulty(previousBlock);
+  const difficulty = await calculateNextDifficulty(previousBlock);
   if (block.difficulty !== difficulty) return mapVCode(VCODE.BK04, difficulty, block.difficulty); // invalid difficulty
 
   let blkTotalInput = 0;

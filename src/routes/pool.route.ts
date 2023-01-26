@@ -22,7 +22,7 @@ import {
   isProduction,
   canMine,
 } from "../config";
-import { calculateDifficulty, getHeadBlock } from "../controllers/blockchain.controller";
+import { calculateNextDifficulty, getHeadBlock } from "../controllers/blockchain.controller";
 import { calculateTransactionFees } from "../controllers/transaction.controller";
 import { getValidMempool } from "../controllers/mempool.controller";
 import { mapVCode, VCODE } from "../helpers/validation-codes";
@@ -76,7 +76,7 @@ router.get(
         shareDifficulty: poolMiner.shareDifficulty,
       });
 
-    const difficulty = await calculateDifficulty(previousBlock);
+    const difficulty = await calculateNextDifficulty(previousBlock);
     const mempool = await getValidMempool();
 
     const selectedTxs = mempool.length ? [mempool[0]] : [];

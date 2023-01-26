@@ -23,7 +23,7 @@ import poolRouter from "./routes/pool.route";
 
 import { checkDatabaseConn } from "./middlewares/mongo.middleware";
 import { getValidMempool } from "./controllers/mempool.controller";
-import { getHeadBlock, calculateDifficulty } from "./controllers/blockchain.controller";
+import { getHeadBlock, calculateNextDifficulty } from "./controllers/blockchain.controller";
 import { getUtxos } from "./controllers/utxo.controller";
 import { connectMongoDB } from "./helpers/database.helper";
 import { recalculateCache } from "./helpers/general.helper";
@@ -68,12 +68,13 @@ app.use(poolRouter);
 
 app.get("/", async (_, res) => {
   const headBlock = await getHeadBlock();
+  const nextBlockDifficulty = await calculateNextDifficulty(headBlock);
   const message = `
     <h1>Bobcoin Node v${process.env.npm_package_version}</h1>
     <pre>Network: ${network}</pre>
     <pre>Parameters: ${JSON.stringify(params, null, 2)}</pre>
     <pre>Head block: ${JSON.stringify(headBlock, null, 2)}</pre>
-    <pre>Difficulty: ${await calculateDifficulty(headBlock)}</pre>
+    <pre>Difficulty: ${nextBlockDifficulty}</pre>
     <pre>Valid Mempool: ${JSON.stringify(await getValidMempool(), null, 2)}</pre>
     `;
   // <pre>Utxos: ${JSON.stringify(await getUtxos(), null, 2)}</pre>
