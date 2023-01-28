@@ -11,7 +11,7 @@ export const connectMongoDB = async () => {
       useFindAndModify: false,
     });
 
-    console.log("MongoDB connection established to", network);
+    console.log("MongoDB connection established");
   } catch (e) {
     console.error("could not connect to MongoDB:", e);
   }

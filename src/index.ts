@@ -9,7 +9,7 @@ import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 import queue from "express-queue";
 
-import { network, port, whitelistedNodeUrls, canRecalcCache, isProduction, blockQueueLimit } from "./config";
+import { network, port, canMine, canRecalcCache, isProduction, blockQueueLimit } from "./config";
 import blockRouter from "./routes/block.route";
 import transactionRouter from "./routes/transaction.route";
 import utxoRouter from "./routes/utxo.route";
@@ -88,6 +88,8 @@ app.all("*", (_, res) => res.sendStatus(404));
   console.log(`Starting Bobcoin Node v${process.env.npm_package_version}`);
   console.log(welcomeText);
   console.log("Network:", network);
+  console.log("Mining enabled:", canMine);
+  console.log("Cache recalculation enabled:", canRecalcCache);
 
   await connectMongoDB();
 
