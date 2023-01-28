@@ -1,20 +1,17 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
-import { BlocksInfo, Utxos, Blocks } from "../models";
+import { Blocks } from "../models";
 import params from "../params";
 import {
   createOutput,
   calculateBlockReward,
   createTransaction,
   calculateTransactionHash,
-  calculateMerkleRoot,
   createBlock,
 } from "blockcrypto";
-import { getValidMempool } from "../controllers/mempool.controller";
 import { calculateNextDifficulty, getHeadBlock } from "../controllers/blockchain.controller";
 import { validateCandidateBlock } from "../controllers/validation.controller";
 import { Block, Transaction } from "../models/types";
-import { mapVCode, VCODE } from "../helpers/validation-codes";
 import { calculateTransactionFees } from "../controllers/transaction.controller";
 import { nodeDonationPercent, nodeDonationAddress, isProduction } from "../config";
 
@@ -43,7 +40,7 @@ router.post(
     if (!miner) return res.sendStatus(400);
 
     const previousBlock = previousBlockHash
-      ? await Blocks.findOne({ hash: previousBlockHash }, "-_id hash height").lean()
+      ? await Blocks.findOne({ hash: previousBlockHash }, "-_id -transactions").lean()
       : await getHeadBlock();
 
     if (!previousBlock) return res.status(404).send("Previous block not found.");
