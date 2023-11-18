@@ -75,8 +75,8 @@ app.get("/", async (_, res) => {
     <pre>Parameters: ${JSON.stringify(params, null, 2)}</pre>
     <pre>Head block: ${JSON.stringify(headBlock, null, 2)}</pre>
     <pre>Difficulty: ${nextBlockDifficulty}</pre>
-    <pre>Valid Mempool: ${JSON.stringify(await getValidMempool(), null, 2)}</pre>
     `;
+  // <pre>Valid Mempool: ${JSON.stringify(await getValidMempool(), null, 2)}</pre>
   // <pre>Utxos: ${JSON.stringify(await getUtxos(), null, 2)}</pre>
   res.send(message);
 });
