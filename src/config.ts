@@ -9,8 +9,8 @@ export const port = parseInt(process.env.PORT ?? "");
 export const apiKey = process.env.API_KEY;
 export const mongoURI = process.env.MONGODB_URI;
 export const blockQueueLimit = process.env.BLOCK_QUEUE_LIMIT ?? 20;
-export const canRecalcCache = !process.env.npm_config_norecalc;
-export const canMine = !process.env.npm_config_nomine;
+export const canRecalcCache = process.env.CACHE_RECALC_ENABLED === "true";
+export const canMine = process.env.MINING_ENABLED === "true";
 
 export const recaptchaSecretKey = process.env.RECAPTCHA_SECRET_KEY;
 export const faucetSecretKey = process.env.FAUCET_SECRET_KEY;

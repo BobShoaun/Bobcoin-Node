@@ -41,6 +41,7 @@ router.get("/block/head", async (req, res) => {
 
 router.get("/blocks/height/:height", async (req: Request<{ height: number }>, res) => {
   const { height } = req.params;
+  if (height < 0) return res.status(400).send({ error: "Height must be a non-negative integer" });
   const blocks = await BlocksInfo.find({ height }, { _id: false }).sort({ valid: -1 }); // show valid ones first
   if (!blocks.length) return res.status(404).send(blocks);
   res.send(blocks);
@@ -58,6 +59,8 @@ const getBlockHeights = async (height: number, limit: number) =>
 router.get("/blocks/heights", async (req, res) => {
   const height = parseInt(req.query.height as string);
   const limit = parseInt(req.query.limit as string);
+  if (isNaN(height) || height < 0) return res.status(400).send({ error: "Height must be a non-negative integer" });
+  if (isNaN(limit) || limit <= 0) return res.status(400).send({ error: "Limit must be a positive integer" });
   const blockHeights = await getBlockHeights(height, limit);
   res.send(blockHeights);
 });

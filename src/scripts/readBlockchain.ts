@@ -18,12 +18,7 @@ import { validateBlockchain } from "../controllers/validation.controller";
   process.exit();
 
   // add to db
-  await mongoose.connect(mongoURI, {
-    useNewUrlParser: true,
-    useCreateIndex: true,
-    useUnifiedTopology: true,
-    useFindAndModify: false,
-  });
+  await mongoose.connect(mongoURI, {});
   console.log("MongoDB database connection established to:", network);
 
   await Blocks.deleteMany();

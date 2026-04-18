@@ -1,15 +1,16 @@
 import mongoose from "mongoose";
 
-import { mongoURI, network } from "../config";
+import { mongoURI } from "../config";
 
 export const connectMongoDB = async () => {
+
+  if (!mongoURI) {
+    console.error("MONGODB_URI is not defined in environment variables");
+    return;
+  }
+
   try {
-    await mongoose.connect(mongoURI, {
-      useNewUrlParser: true,
-      useCreateIndex: true,
-      useUnifiedTopology: true,
-      useFindAndModify: false,
-    });
+    await mongoose.connect(mongoURI, {});
 
     console.log("MongoDB connection established");
   } catch (e) {

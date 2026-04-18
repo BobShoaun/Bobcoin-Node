@@ -6,6 +6,7 @@ const minHeight = 3584;
 (async () => {
   await connectMongoDB();
 
+  // DANGERRRRRR
   // const result = await Blocks.deleteMany({ height: { $gte: minHeight } });
   // console.log(result);
 
