@@ -4,10 +4,8 @@ import { mongoURI } from "../config";
 
 export const connectMongoDB = async () => {
 
-  if (!mongoURI) {
-    console.error("MONGODB_URI is not defined in environment variables");
-    return;
-  }
+  if (!mongoURI)
+    throw new Error("MONGODB_URI is not defined in environment variables");
 
   try {
     await mongoose.connect(mongoURI, {});

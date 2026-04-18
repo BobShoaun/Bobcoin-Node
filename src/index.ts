@@ -132,23 +132,24 @@ app.all("*", (_, res) => res.sendStatus(404));
 
   const blocksCount = await Blocks.countDocuments();
   const blocksInfoCount = await BlocksInfo.countDocuments();
-  const utxosCount = await Utxos.countDocuments();
-  const mempoolCount = await Mempool.countDocuments();
+  // const utxosCount = await Utxos.countDocuments();
+  // const mempoolCount = await Mempool.countDocuments();
 
-  if (!blocksCount && !blocksInfoCount && !utxosCount && !mempoolCount) {
-    // setup blockchain, add genesis block
-    console.log("Genesis block does not exist, creating.");
-    await Blocks.create(params.genesisBlock);
-    const blockInfo = { ...params.genesisBlock, valid: true };
-    await BlocksInfo.create(blockInfo);
+  // Dont really need to do this
+  // if (!blocksCount && !blocksInfoCount && !utxosCount && !mempoolCount) {
+  //   // setup blockchain, add genesis block
+  //   console.log("Genesis block does not exist, creating.");
+  //   await Blocks.create(params.genesisBlock);
+  //   const blockInfo = { ...params.genesisBlock, valid: true };
+  //   await BlocksInfo.create(blockInfo);
 
-    for (const transaction of blockInfo.transactions) {
-      for (let i = 0; i < transaction.outputs.length; i++) {
-        const { address, amount } = transaction.outputs[i];
-        await Utxos.create({ txHash: transaction.hash, outIndex: i, address, amount });
-      }
-    }
-  }
+  //   for (const transaction of blockInfo.transactions) {
+  //     for (let i = 0; i < transaction.outputs.length; i++) {
+  //       const { address, amount } = transaction.outputs[i];
+  //       await Utxos.create({ txHash: transaction.hash, outIndex: i, address, amount });
+  //     }
+  //   }
+  // }
 
   if (blocksCount !== blocksInfoCount) {
     console.error("FATAL: blocks and blocksInfo database not in sync!");
